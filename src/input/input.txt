@@ -1,0 +1,5 @@
+This module is in charge of:
+    - Defining simulation parameters
+    - Generating graphs
+    - Load graphs from files
+    - Returning a graph object 
