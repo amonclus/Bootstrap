@@ -1,3 +1,4 @@
+from input.write_graph import write_graph
 from src.input.graph_generator import (
     generate_er_graph,
     generate_random_geometric_graph,
@@ -46,6 +47,8 @@ def main():
         else:
             print("Invalid selection")
             return
+
+        write_graph(g, "generated_graph.dimacs")
 
     elif choice == "2":
 
