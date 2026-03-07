@@ -34,9 +34,13 @@ class BootstrapPercolation:
         self.threshold = threshold
         self.n = graph.number_of_nodes()
 
-    def run(self, seed_nodes: set[int]) -> BootstrapResult:
+    def run(self, seed_nodes: set[int], record_sequence: bool = False) -> tuple[BootstrapResult, list[set]]:
         infected = set(seed_nodes)
         rounds = 0
+        activation_sequence = []
+
+        if record_sequence:
+            activation_sequence.append(set(infected))  # initial seed round
 
         while True:
             newly_infected = set()
@@ -44,8 +48,7 @@ class BootstrapPercolation:
                 if node in infected:
                     continue
                 infected_neighbors = sum(
-                    1 for neighbor in self.graph.neighbors(node)
-                    if neighbor in infected
+                    1 for neighbor in self.graph.neighbors(node) if neighbor in infected
                 )
                 if infected_neighbors >= self.threshold:
                     newly_infected.add(node)
@@ -56,6 +59,9 @@ class BootstrapPercolation:
             infected |= newly_infected
             rounds += 1
 
+            if record_sequence:
+                activation_sequence.append(set(newly_infected))
+
         result = BootstrapResult(
             infected_nodes=infected,
             cascade_size=len(infected),
@@ -63,7 +69,8 @@ class BootstrapPercolation:
             time_to_cascade=rounds,
             is_full_cascade=(len(infected) == self.n),
         )
-        return result
+
+        return result, activation_sequence if record_sequence else []
 
     def cascade_probability(
             self,
@@ -82,7 +89,7 @@ class BootstrapPercolation:
 
         for _ in range(num_trials):
             seed_nodes = random_seeds(self.graph, seed_size)
-            result = self.run(seed_nodes)
+            result, _ = self.run(seed_nodes)
             total_fraction += result.cascade_fraction
             total_time += result.time_to_cascade
             if result.is_full_cascade:
