@@ -11,7 +11,7 @@ def main():
     print("1 - Generate graph")
     print("2 - Load graph from file")
     print("3 - Run full parameter sweep on synthetic graphs")
-
+    
     choice = input("Enter choice: ")
     if choice == "3":
         print("\nRunning full parameter sweep (this may take some time)...")
