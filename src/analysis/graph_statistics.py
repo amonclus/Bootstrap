@@ -1,4 +1,3 @@
-"""Graph structural statistics for cascade analysis."""
 
 from __future__ import annotations
 
@@ -7,9 +6,6 @@ import networkx as nx
 
 
 def compute_graph_statistics(graph: nx.Graph) -> Dict:
-    """
-    Compute structural statistics of a graph relevant to cascade behavior.
-    """
 
     n = graph.number_of_nodes()
     m = graph.number_of_edges()
@@ -17,13 +13,9 @@ def compute_graph_statistics(graph: nx.Graph) -> Dict:
     if n == 0:
         return {}
 
-    stats = {}
-
-    stats["nodes"] = n
-    stats["edges"] = m
+    stats = {"nodes": n, "edges": m, "density": nx.density(graph)}
 
     # Density
-    stats["density"] = nx.density(graph)
 
     # Degree statistics
     degrees = [deg for _, deg in graph.degree()]
@@ -53,10 +45,6 @@ def compute_graph_statistics(graph: nx.Graph) -> Dict:
 
 
 def degree_distribution(graph: nx.Graph) -> Dict[int, int]:
-    """
-    Return the degree distribution of the graph.
-    """
-
     distribution = {}
 
     for _, degree in graph.degree():
@@ -66,10 +54,6 @@ def degree_distribution(graph: nx.Graph) -> Dict[int, int]:
 
 
 def print_graph_statistics(graph: nx.Graph) -> None:
-    """
-    Pretty-print graph statistics for debugging or quick inspection.
-    """
-
     stats = compute_graph_statistics(graph)
 
     print("Graph statistics:")

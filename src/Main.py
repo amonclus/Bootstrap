@@ -3,6 +3,7 @@ from simulation.bootstrap import BootstrapPercolation
 from analysis.graph_statistics import print_graph_statistics
 from analysis.parameter_sweep import run_full_parameter_sweep
 from visualization.visualization import animate_cascade
+import random
 
 
 def main():
@@ -53,7 +54,6 @@ def main():
         record_sequence = visualize.lower() == "y"
 
         print("Running bootstrap percolation simulation...")
-        import random
         seed_nodes = set(random.sample(list(g.nodes()), seed_size))
 
         # Run simulation for visualization with the seed nodes
@@ -85,7 +85,6 @@ def main():
 
             # Compute a final robustness score (composite metric)
             # Higher cascade probability and cascade size → lower robustness
-            # Example formula: robustness = (1 - cascade_fraction) * (1 - cascade_probability) * (1 - percolation_threshold)
             robustness = (1 - result.cascade_fraction) * (1 / (1 + result.time_to_cascade))
             print(f"\nFinal robustness score (0=fragile, 1=robust): {robustness:.4f}")
 

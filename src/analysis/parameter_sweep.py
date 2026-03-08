@@ -1,21 +1,10 @@
-"""Parameter sweep utilities for running systematic bootstrap percolation experiments."""
-
 from __future__ import annotations
-
 from typing import List, Dict
-
 import networkx as nx
-
 from simulation.bootstrap import BootstrapPercolation
 
 
-def sweep_er_probability(
-    n: int,
-    probabilities: List[float],
-    threshold: int = 2,
-    num_trials: int = 50,
-) -> List[Dict]:
-    """Sweep edge probability for Erdős–Rényi graphs."""
+def sweep_er_probability(n: int, probabilities: List[float], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
 
     results = []
 
@@ -42,13 +31,7 @@ def sweep_er_probability(
     return results
 
 
-def sweep_geometric_radius(
-    n: int,
-    radii: List[float],
-    threshold: int = 2,
-    num_trials: int = 50,
-) -> List[Dict]:
-    """Sweep connection radius for Random Geometric Graphs."""
+def sweep_geometric_radius(n: int,radii: List[float], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
 
     results = []
 
@@ -75,12 +58,7 @@ def sweep_geometric_radius(
     return results
 
 
-def sweep_lattice_size(
-    sizes: List[int],
-    threshold: int = 2,
-    num_trials: int = 50,
-) -> List[Dict]:
-    """Sweep lattice grid sizes."""
+def sweep_lattice_size(sizes: List[int], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
 
     results = []
 
@@ -108,13 +86,7 @@ def sweep_lattice_size(
     return results
 
 
-def sweep_seed_fraction(
-    graph: nx.Graph,
-    seed_fractions: List[float],
-    threshold: int = 2,
-    num_trials: int = 50,
-) -> List[Dict]:
-    """Evaluate cascade behavior for different seed fractions on a fixed graph."""
+def sweep_seed_fraction(graph: nx.Graph, seed_fractions: List[float], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
 
     results = []
 
@@ -142,7 +114,6 @@ def sweep_seed_fraction(
 
 
 def run_full_parameter_sweep(k_values: list[int] = [1, 2, 3, 4, 5], num_trials: int = 50) -> Dict[str, List[Dict]]:
-    """Run a standard suite of parameter sweeps for experiments across multiple thresholds k."""
 
     results = {}
 

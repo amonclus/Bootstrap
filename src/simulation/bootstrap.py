@@ -20,7 +20,7 @@ class BootstrapResult:
 
 @dataclass
 class PercolationMetrics:
-    cascade_size: float = 0.0  # average cascade fraction
+    cascade_size: float = 0.0  # average cascade fraction (infected / total nodes)
     critical_seed_size: int = 0  # minimum seeds for full cascade
     cascade_probability: float = 0.0  # probability of full cascade
     time_to_cascade: float = 0.0  # average rounds to stabilize
@@ -72,12 +72,8 @@ class BootstrapPercolation:
 
         return result, activation_sequence if record_sequence else []
 
-    def cascade_probability(
-            self,
-            seed_size: int,
-            num_trials: int = 100,
-            seed: Optional[int] = None,
-    ) -> tuple[float, float, float]:
+    def cascade_probability(self, seed_size: int, num_trials: int = 100, seed: Optional[int] = None,) \
+            -> tuple[float, float, float]:
 
         if seed is not None:
             random.seed(seed)
@@ -100,13 +96,7 @@ class BootstrapPercolation:
         avg_time = total_time / num_trials
         return prob, avg_fraction, avg_time
 
-    def find_critical_seed_size(
-            self,
-            num_trials: int = 50,
-            cascade_threshold: float = 1.0,
-            probability_threshold: float = 0.5,
-            seed: Optional[int] = None,
-    ) -> int:
+    def find_critical_seed_size(self, num_trials: int = 50, cascade_threshold: float = 1.0, probability_threshold: float = 0.5, seed: Optional[int] = None, ) -> int:
         if seed is not None:
             random.seed(seed)
 
@@ -124,12 +114,7 @@ class BootstrapPercolation:
 
         return result
 
-    def find_percolation_threshold(
-            self,
-            num_trials: int = 50,
-            probability_threshold: float = 0.5,
-            seed: Optional[int] = None,
-    ) -> float:
+    def find_percolation_threshold(self, num_trials: int = 50, probability_threshold: float = 0.5, seed: Optional[int] = None, ) -> float:
         critical = self.find_critical_seed_size(
             num_trials=num_trials,
             probability_threshold=probability_threshold,
@@ -137,25 +122,17 @@ class BootstrapPercolation:
         )
         return critical / self.n if self.n > 0 else 0.0
 
-    def collect_metrics(
-            self,
-            seed_size: Optional[int] = None,
-            num_trials: int = 100,
-            seed: Optional[int] = None,
-    ) -> PercolationMetrics:
+    def collect_metrics(self, seed_size: Optional[int] = None, num_trials: int = 100, seed: Optional[int] = None, ) -> PercolationMetrics:
         # Find critical seed size and percolation threshold
-        critical_seed = self.find_critical_seed_size(
-            num_trials=num_trials, seed=seed
-        )
+        critical_seed = self.find_critical_seed_size(num_trials=num_trials, seed=seed)
+
         percolation_thresh = critical_seed / self.n if self.n > 0 else 0.0
 
         # Use provided seed_size or fall back to critical
         eval_size = seed_size if seed_size is not None else critical_seed
 
         # Estimate cascade probability and averages at that seed size
-        prob, avg_fraction, avg_time = self.cascade_probability(
-            seed_size=eval_size, num_trials=num_trials, seed=seed
-        )
+        prob, avg_fraction, avg_time = self.cascade_probability(seed_size=eval_size, num_trials=num_trials, seed=seed)
 
         return PercolationMetrics(
             cascade_size=avg_fraction,

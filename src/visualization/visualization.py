@@ -1,4 +1,3 @@
-"""Visualization utilities for cascade percolation analysis."""
 
 from __future__ import annotations
 from typing import List, Dict, Optional
@@ -9,7 +8,6 @@ import plotly.graph_objects as go
 
 
 def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: Optional[str] = None):
-    """Animate cascade propagation using Plotly."""
 
     pos = nx.spring_layout(graph, seed=42)
     node_list = list(graph.nodes())
@@ -107,19 +105,6 @@ def plot_phase_transition(
     figsize=(8, 5),
     save_path: Optional[str] = None,
 ):
-    """
-    Plot phase transition curves for cascade experiments.
-
-    :param sweep_results: list of dictionaries from parameter sweep
-    :param x_param: key for x-axis values (e.g., 'p', 'radius', 'seed_fraction')
-    :param y_param: key for y-axis values (e.g., 'cascade_probability', 'cascade_size')
-    :param xlabel: label for x-axis
-    :param ylabel: label for y-axis
-    :param title: plot title
-    :param threshold_param: if provided, plots separate curves for different thresholds k
-    :param figsize: figure size
-    :param save_path: if provided, saves the plot
-    """
 
     plt.figure(figsize=figsize)
 
@@ -155,12 +140,6 @@ def plot_cascade_evolution(
     figsize=(8, 5),
     save_path: Optional[str] = None,
 ):
-    """
-    Plot cascade fraction vs rounds.
-
-    :param cascade_fractions: fraction of activated nodes per round
-    :param rounds: round numbers
-    """
 
     plt.figure(figsize=figsize)
     plt.plot(rounds, cascade_fractions, marker="o")
