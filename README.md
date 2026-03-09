@@ -44,3 +44,9 @@ to minimeze the effect of randomness. The following metrics are measured:
 - Cascade probability: The probability that a cascade occurs given a certain initial seed size and threshold.
 
 From these metrics a final robustness score is calculated, which is a composite measure of the network's vulnerability to cascade effects.
+
+## UI
+To launch the interactive user interface, run the following command:
+```
+bash streamlit run src/app.py
+```

@@ -7,7 +7,7 @@ import networkx as nx
 import plotly.graph_objects as go
 
 
-def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: Optional[str] = None):
+def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: Optional[str] = None, show: bool = True):
 
     pos = nx.spring_layout(graph, seed=42)
     node_list = list(graph.nodes())
@@ -91,7 +91,10 @@ def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: 
 
     if save_path:
         fig.write_html(save_path)
-    fig.show()
+    if show:
+        fig.show()
+
+    return fig
 
 
 def plot_phase_transition(
