@@ -35,7 +35,7 @@ from visualization.visualization import animate_cascade
 st.set_page_config(
     page_title="Bootstrap Percolation – Network Risk Analysis",
     page_icon="🌐",
-    layout="wide",
+    layout="centered",
 )
 
 st.title("🌐 Bootstrap Percolation – Network Risk Analysis")
@@ -71,7 +71,6 @@ if source == "Generate":
                 graph = generate_random_geometric_graph(n, radius)
             else:
                 graph = generate_lattice_graph(grid_size)
-                graph = nx.convert_node_labels_to_integers(graph)
         st.session_state["graph"] = graph
         st.session_state.pop("sim_results", None)  # clear stale results
         st.sidebar.success(
@@ -128,6 +127,128 @@ tab_stats, tab_sim, tab_anim, tab_sweep = st.tabs(
 # ── Tab 1: Graph Statistics ──────────────────────────────────────────────────
 
 with tab_stats:
+    # ── Graph visualisation ──────────────────────────────────────────────
+    st.subheader("Graph Visualisation")
+
+    from visualization.visualization import _is_lattice
+
+    is_lattice_graph = _is_lattice(graph)
+
+    # — Pick the best layout for each graph type —
+    # Random Geometric graphs carry natural 2-D positions in node attrs
+    has_pos_attr = all("pos" in graph.nodes[n] for n in graph.nodes())
+
+    if is_lattice_graph:
+        pos = {n: (int(n[1]), -int(n[0])) for n in graph.nodes()}
+    elif has_pos_attr:
+        # Use the spatial coordinates that nx.random_geometric_graph stores
+        pos = {n: tuple(graph.nodes[n]["pos"]) for n in graph.nodes()}
+    else:
+        # ER / generic graphs – Kamada-Kawai gives cleaner results for
+        # small-to-medium graphs; fall back to spring for large ones.
+        if graph.number_of_nodes() <= 500:
+            pos = nx.kamada_kawai_layout(graph)
+        else:
+            pos = nx.spring_layout(graph, seed=42, k=1.5 / (graph.number_of_nodes() ** 0.5), iterations=80)
+
+    node_list = list(graph.nodes())
+
+    # — Adapt visual parameters to graph density —
+    density = nx.density(graph)
+    n_nodes = graph.number_of_nodes()
+
+    # Edge opacity: fade edges in dense graphs to reduce clutter
+    edge_opacity = max(0.08, min(1.0, 0.6 / (1 + 20 * density)))
+    edge_width = 0.5 if density > 0.15 else 0.8
+
+    edge_x, edge_y = [], []
+    for u, v in graph.edges():
+        edge_x += [pos[u][0], pos[v][0], None]
+        edge_y += [pos[u][1], pos[v][1], None]
+
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=edge_width, color=f"rgba(180,180,180,{edge_opacity})"),
+        hoverinfo="none",
+        mode="lines",
+    )
+
+    # — Node styling per graph type —
+    if is_lattice_graph:
+        node_marker = dict(
+            size=10,
+            color="steelblue",
+            symbol="square",
+            line=dict(width=1, color="darkgray"),
+        )
+        hover_text = [f"({n[0]},{n[1]})" for n in node_list]
+    elif has_pos_attr:
+        # Random Geometric – colour by degree to show connectivity
+        degrees = [graph.degree(n) for n in node_list]
+        node_marker = dict(
+            size=7,
+            color=degrees,
+            colorscale="Viridis",
+            showscale=True,
+            colorbar=dict(title="Degree", thickness=12, len=0.5),
+            line=dict(width=0.5, color="white"),
+        )
+        hover_text = [f"Node {n}  (deg {graph.degree(n)})" for n in node_list]
+    else:
+        # ER / generic – colour by degree
+        degrees = [graph.degree(n) for n in node_list]
+        node_marker = dict(
+            size=max(4, min(8, 300 / n_nodes)),
+            color=degrees,
+            colorscale="Plasma",
+            showscale=True,
+            colorbar=dict(title="Degree", thickness=12, len=0.5),
+            line=dict(width=0.5, color="white"),
+        )
+        hover_text = [f"Node {n}  (deg {graph.degree(n)})" for n in node_list]
+
+    node_trace = go.Scatter(
+        x=[pos[n][0] for n in node_list],
+        y=[pos[n][1] for n in node_list],
+        mode="markers",
+        text=hover_text,
+        hoverinfo="text",
+        marker=node_marker,
+    )
+
+    layout_kw = dict(
+        title="Network Structure",
+        showlegend=False,
+        hovermode="closest",
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        margin=dict(l=20, r=20, t=40, b=20),
+    )
+
+    if is_lattice_graph:
+        all_x = [pos[n][0] for n in node_list]
+        all_y = [pos[n][1] for n in node_list]
+        pad = 0.8
+        layout_kw["xaxis"].update(
+            range=[min(all_x) - pad, max(all_x) + pad],
+            scaleanchor="y",
+            scaleratio=1,
+        )
+        layout_kw["yaxis"].update(
+            range=[min(all_y) - pad, max(all_y) + pad],
+        )
+        layout_kw["width"] = 700
+        layout_kw["height"] = 700
+    elif has_pos_attr:
+        # Random Geometric lives in [0,1]² – keep aspect ratio square
+        layout_kw["xaxis"].update(scaleanchor="y", scaleratio=1)
+        layout_kw["width"] = 700
+        layout_kw["height"] = 700
+
+    fig_graph = go.Figure(data=[edge_trace, node_trace], layout=go.Layout(**layout_kw))
+    st.plotly_chart(fig_graph, use_container_width=not (is_lattice_graph or has_pos_attr))
+
+    # ── Structural statistics ────────────────────────────────────────────
     st.subheader("Structural Statistics")
     stats = compute_graph_statistics(graph)
 

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 from typing import List, Dict, Optional
 import matplotlib.pyplot as plt
@@ -7,20 +6,59 @@ import networkx as nx
 import plotly.graph_objects as go
 
 
+def _is_lattice(graph: nx.Graph) -> bool:
+    """Detect whether the graph is a 2-D lattice (nodes are (row, col) tuples)."""
+    sample_node = next(iter(graph.nodes()))
+    return isinstance(sample_node, tuple) and len(sample_node) == 2
+
+
 def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: Optional[str] = None, show: bool = True):
 
-    pos = nx.spring_layout(graph, seed=42)
+    is_lattice = _is_lattice(graph)
+    has_pos_attr = all("pos" in graph.nodes[n] for n in graph.nodes())
+
+    # Choose layout
+    if is_lattice:
+        pos = {n: (int(n[1]), -int(n[0])) for n in graph.nodes()}
+    elif has_pos_attr:
+        pos = {n: tuple(graph.nodes[n]["pos"]) for n in graph.nodes()}
+    else:
+        if graph.number_of_nodes() <= 500:
+            pos = nx.kamada_kawai_layout(graph)
+        else:
+            pos = nx.spring_layout(graph, seed=42, k=1.5 / (graph.number_of_nodes() ** 0.5), iterations=80)
     node_list = list(graph.nodes())
+
+    # Adjust marker & label settings
+    if is_lattice:
+        marker_size = 12
+        node_symbol = 'square'
+        marker_line = dict(width=1, color='darkgray')
+        node_text = [f"({n[0]},{n[1]})" for n in node_list]
+    else:
+        marker_size = max(4, min(8, 300 / graph.number_of_nodes()))
+        node_symbol = 'circle'
+        marker_line = dict(width=0.5, color='white')
+        node_text = [str(n) for n in node_list]
+
+    # Adaptive edge styling
+    density = nx.density(graph)
+    edge_opacity = max(0.08, min(1.0, 0.6 / (1 + 20 * density)))
+    edge_width = 0.5 if density > 0.15 else 0.8
 
     # Create base node trace
     node_trace = go.Scatter(
         x=[pos[n][0] for n in node_list],
         y=[pos[n][1] for n in node_list],
-        mode='markers+text',
-        text=[str(n) for n in node_list],
-        textposition='top center',
-        marker=dict(size=20, color='lightgray'),
-        hoverinfo='text'
+        mode='markers',
+        text=node_text,
+        marker=dict(
+            size=marker_size,
+            color='lightgray',
+            symbol=node_symbol,
+            line=marker_line,
+        ),
+        hoverinfo='text',
     )
 
     # Create edge traces
@@ -32,7 +70,7 @@ def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: 
 
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
-        line=dict(width=1, color='gray'),
+        line=dict(width=edge_width, color=f'rgba(180,180,180,{edge_opacity})'),
         hoverinfo='none',
         mode='lines'
     )
@@ -49,10 +87,14 @@ def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: 
                 go.Scatter(
                     x=[pos[n][0] for n in node_list],
                     y=[pos[n][1] for n in node_list],
-                    mode='markers+text',
-                    text=[str(n) for n in node_list],
-                    textposition='top center',
-                    marker=dict(size=20, color=node_colors),
+                    mode='markers',
+                    text=node_text,
+                    marker=dict(
+                        size=marker_size,
+                        color=node_colors,
+                        symbol=node_symbol,
+                        line=marker_line,
+                    ),
                     hoverinfo='text',
                 ),
             ],
@@ -69,23 +111,46 @@ def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: 
         pad=dict(t=50),
     )]
 
+    # Build layout – enforce equal aspect ratio for spatial graphs
+    layout_kwargs = dict(
+        title='Cascade Animation',
+        showlegend=False,
+        sliders=sliders,
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        updatemenus=[dict(
+            type='buttons',
+            buttons=[
+                dict(label='▶ Play', method='animate',
+                     args=[None, dict(frame=dict(duration=1000, redraw=True), fromcurrent=True, transition=dict(duration=300))]),
+                dict(label='⏸ Pause', method='animate',
+                     args=[[None], dict(frame=dict(duration=0, redraw=False), mode='immediate', transition=dict(duration=0))]),
+            ],
+        )],
+    )
+
+    if is_lattice:
+        all_x = [pos[n][0] for n in node_list]
+        all_y = [pos[n][1] for n in node_list]
+        pad = 0.8
+        layout_kwargs["xaxis"].update(
+            range=[min(all_x) - pad, max(all_x) + pad],
+            scaleanchor='y', scaleratio=1,
+        )
+        layout_kwargs["yaxis"].update(
+            range=[min(all_y) - pad, max(all_y) + pad],
+        )
+        layout_kwargs["width"] = 700
+        layout_kwargs["height"] = 700
+    elif has_pos_attr:
+        layout_kwargs["xaxis"].update(scaleanchor='y', scaleratio=1)
+        layout_kwargs["width"] = 700
+        layout_kwargs["height"] = 700
+
     # Build figure
     fig = go.Figure(
         data=[edge_trace, node_trace],
-        layout=go.Layout(
-            title='Cascade Animation',
-            showlegend=False,
-            sliders=sliders,
-            updatemenus=[dict(
-                type='buttons',
-                buttons=[
-                    dict(label='▶ Play', method='animate',
-                         args=[None, dict(frame=dict(duration=1000, redraw=True), fromcurrent=True, transition=dict(duration=300))]),
-                    dict(label='⏸ Pause', method='animate',
-                         args=[[None], dict(frame=dict(duration=0, redraw=False), mode='immediate', transition=dict(duration=0))]),
-                ],
-            )],
-        ),
+        layout=go.Layout(**layout_kwargs),
         frames=frames,
     )
 
