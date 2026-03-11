@@ -141,3 +141,189 @@ class BootstrapPercolation:
             time_to_cascade=avg_time,
             percolation_threshold=percolation_thresh,
         )
+
+    # ── Node vulnerability analysis ─────────────────────────────────────
+
+    def node_influence_analysis(self, seed_fraction: float = 0.05,num_trials: int = 20,seed: Optional[int] = None,progress_callback=None,) -> list[dict]:
+        """Compute per-node influence on cascade propagation.
+
+        For every node *v* in the graph the method runs *num_trials*
+        bootstrap-percolation simulations where *v* is **always** part of
+        the initial seed set (the remaining seeds are chosen uniformly at
+        random).
+
+        Metrics collected per node
+        * **influence_score** – average cascade fraction across trials.
+        * **cascade_probability** – fraction of trials that produced a
+          full cascade (all nodes infected).
+        * **avg_time** – average number of rounds until stabilisation.
+        * **cascade_std** – standard deviation of the cascade fraction
+          (high → unpredictable, low → consistent behaviour).
+
+        A high influence score *and* high cascade probability means the
+        node is a **weak point**.  A low influence score means it is
+        **strong** / resilient.
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        nodes = list(self.graph.nodes())
+        n = len(nodes)
+        seed_size = max(2, int(seed_fraction * n))
+
+        # Pre-compute structural centralities (cheap for typical sizes)
+        betweenness = nx.betweenness_centrality(self.graph)
+        closeness = nx.closeness_centrality(self.graph)
+
+        results: list[dict] = []
+
+        for idx, target in enumerate(nodes):
+            other_nodes = [nd for nd in nodes if nd != target]
+            pick = min(seed_size - 1, len(other_nodes))
+
+            fractions: list[float] = []
+            full_cascades = 0
+            total_time = 0
+
+            for _ in range(num_trials):
+                companions = set(random.sample(other_nodes, pick))
+                seed_set = companions | {target}
+                result, _ = self.run(seed_set)
+                fractions.append(result.cascade_fraction)
+                total_time += result.time_to_cascade
+                if result.is_full_cascade:
+                    full_cascades += 1
+
+            avg_fraction = sum(fractions) / num_trials
+            mean_sq = sum(f * f for f in fractions) / num_trials
+            std_fraction = (mean_sq - avg_fraction ** 2) ** 0.5
+
+            results.append({
+                "node": target,
+                "influence_score": round(avg_fraction, 6),
+                "cascade_probability": round(full_cascades / num_trials, 4),
+                "avg_time": round(total_time / num_trials, 2),
+                "cascade_std": round(std_fraction, 6),
+                "degree": self.graph.degree(target),
+                "betweenness": round(betweenness[target], 6),
+                "closeness": round(closeness[target], 6),
+            })
+
+            if progress_callback is not None:
+                progress_callback(idx + 1, n)
+
+        # Sort: most influential (weakest) first
+        results.sort(key=lambda r: r["influence_score"], reverse=True)
+        return results
+
+    # ── Node blocking / immunisation analysis ───────────────────────────
+
+    def node_blocking_analysis(
+        self,
+        seed_fraction: float = 0.05,
+        num_trials: int = 20,
+        seed: Optional[int] = None,
+        progress_callback=None,
+    ) -> tuple[list[dict], float, float]:
+        """Assess how much each node's removal reduces cascade spread.
+
+        For every node *v* the method builds a subgraph *G − {v}*,
+        runs *num_trials* bootstrap-percolation simulations on it, and
+        compares the result to a **baseline** computed on the original
+        graph with the same seed fraction and trial count.
+
+        Metrics per node
+        * **cascade_reduction** – baseline avg cascade fraction minus
+          the avg fraction with the node removed.  High = protecting
+          this node is very effective.
+        * **prob_reduction** – drop in full-cascade probability.
+        * **cascade_blocked** – avg cascade fraction with node removed.
+        * **prob_blocked** – full-cascade probability with node removed.
+        * **time_blocked** – avg rounds to stabilisation with node
+          removed.
+        * **degree / betweenness / closeness** – structural metrics on
+          the *original* graph for reference.
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        nodes = list(self.graph.nodes())
+        n = len(nodes)
+        seed_size = max(1, int(seed_fraction * n))
+
+        # ── Baseline on the full graph ──────────────────────────────────
+        baseline_fractions: list[float] = []
+        baseline_full = 0
+        for _ in range(num_trials):
+            s = set(random.sample(nodes, seed_size))
+            res, _ = self.run(s)
+            baseline_fractions.append(res.cascade_fraction)
+            if res.is_full_cascade:
+                baseline_full += 1
+        baseline_avg = sum(baseline_fractions) / num_trials
+        baseline_prob = baseline_full / num_trials
+
+        # Pre-compute structural centralities on original graph
+        betweenness = nx.betweenness_centrality(self.graph)
+        closeness = nx.closeness_centrality(self.graph)
+
+        results: list[dict] = []
+
+        for idx, target in enumerate(nodes):
+            # Build reduced graph
+            sub = self.graph.copy()
+            sub.remove_node(target)
+            sub_nodes = list(sub.nodes())
+
+            if len(sub_nodes) == 0:
+                results.append({
+                    "node": target,
+                    "cascade_reduction": round(baseline_avg, 6),
+                    "prob_reduction": round(baseline_prob, 4),
+                    "cascade_blocked": 0.0,
+                    "prob_blocked": 0.0,
+                    "time_blocked": 0.0,
+                    "degree": self.graph.degree(target),
+                    "betweenness": round(betweenness[target], 6),
+                    "closeness": round(closeness[target], 6),
+                })
+                if progress_callback is not None:
+                    progress_callback(idx + 1, n)
+                continue
+
+            sub_sim = BootstrapPercolation(sub, self.threshold)
+            sub_seed_size = max(1, min(seed_size, len(sub_nodes)))
+
+            fracs: list[float] = []
+            full = 0
+            total_time = 0
+
+            for _ in range(num_trials):
+                s = set(random.sample(sub_nodes, sub_seed_size))
+                res, _ = sub_sim.run(s)
+                fracs.append(res.cascade_fraction)
+                total_time += res.time_to_cascade
+                if res.is_full_cascade:
+                    full += 1
+
+            avg_frac = sum(fracs) / num_trials
+            prob_frac = full / num_trials
+
+            results.append({
+                "node": target,
+                "cascade_reduction": round(baseline_avg - avg_frac, 6),
+                "prob_reduction": round(baseline_prob - prob_frac, 4),
+                "cascade_blocked": round(avg_frac, 6),
+                "prob_blocked": round(prob_frac, 4),
+                "time_blocked": round(total_time / num_trials, 2),
+                "degree": self.graph.degree(target),
+                "betweenness": round(betweenness[target], 6),
+                "closeness": round(closeness[target], 6),
+            })
+
+            if progress_callback is not None:
+                progress_callback(idx + 1, n)
+
+        results.sort(key=lambda r: r["cascade_reduction"], reverse=True)
+        return results, baseline_avg, baseline_prob
+

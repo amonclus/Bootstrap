@@ -3,3 +3,5 @@ matplotlib
 plotly
 streamlit
 watchdog
+pandas
+statsmodels

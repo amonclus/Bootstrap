@@ -120,8 +120,9 @@ if graph is None:
 
 # ── Main area tabs ───────────────────────────────────────────────────────────
 
-tab_stats, tab_sim, tab_anim, tab_sweep = st.tabs(
-    ["📊 Graph Statistics", "🔬 Cascade Simulation", "🎬 Cascade Animation", "📈 Parameter Sweep"]
+tab_stats, tab_sim, tab_vuln, tab_anim, tab_sweep = st.tabs(
+    ["📊 Graph Statistics", "🔬 Cascade Simulation", "🎯 Node Vulnerability",
+     "🎬 Cascade Animation", "📈 Parameter Sweep"]
 )
 
 # ── Tab 1: Graph Statistics ──────────────────────────────────────────────────
@@ -330,7 +331,453 @@ with tab_sim:
             m4.metric("Time to Cascade (avg rounds)", f"{metrics.time_to_cascade:.2f}")
             m5.metric("Percolation Threshold", f"{metrics.percolation_threshold:.4f}")
 
-# ── Tab 3: Cascade Animation ────────────────────────────────────────────────
+# ── Tab 3: Node Vulnerability ───────────────────────────────────────────────
+
+with tab_vuln:
+    st.subheader("Node Vulnerability Analysis")
+    st.markdown(
+        "Two complementary views of node vulnerability:\n\n"
+        "- **Activation** — Which nodes, if *infected*, trigger the largest "
+        "cascades? (What to fear)\n"
+        "- **Blocking** — Which nodes, if *immunised / removed*, reduce "
+        "cascade spread the most? (What to protect)"
+    )
+
+    vuln_trials = st.number_input(
+        "Trials per node", 5, 100, 15, step=5, key="vuln_trials",
+        help="More trials → more stable scores, but slower.",
+    )
+
+    n_graph = graph.number_of_nodes()
+    if n_graph > 500:
+        st.warning(
+            f"The graph has {n_graph} nodes — analysis requires "
+            f"{n_graph}×{vuln_trials} = {n_graph * vuln_trials} simulations and "
+            f"may take a while."
+        )
+
+    st.markdown("---")
+    st.markdown("###Node Activation Analysis")
+    st.caption("Each node is forced into the seed set across many trials to measure its influence on cascade size.")
+
+    if st.button("▶ Run vulnerability analysis", key="run_vuln"):
+        sim = BootstrapPercolation(graph, threshold)
+        progress_bar = st.progress(0, text="Evaluating nodes…")
+
+        def _update_progress(current, total):
+            progress_bar.progress(current / total, text=f"Evaluating node {current}/{total}…")
+
+        vuln_data = sim.node_influence_analysis(
+            seed_fraction=seed_fraction,
+            num_trials=vuln_trials,
+            seed=42,
+            progress_callback=_update_progress,
+        )
+        progress_bar.empty()
+
+        st.session_state["vuln_data"] = vuln_data
+
+    if "vuln_data" in st.session_state:
+        vuln_data = st.session_state["vuln_data"]
+        df_vuln = pd.DataFrame(vuln_data)
+
+        # ── Graph coloured by influence score ────────────────────────────
+        st.subheader("Influence Map")
+        st.caption("🔴 Red = weak (high influence)  ·  🔵 Blue = strong (low influence)")
+
+        from visualization.visualization import _is_lattice
+
+        is_lattice_graph = _is_lattice(graph)
+        has_pos_attr = all("pos" in graph.nodes[nd] for nd in graph.nodes())
+
+        if is_lattice_graph:
+            v_pos = {nd: (int(nd[1]), -int(nd[0])) for nd in graph.nodes()}
+        elif has_pos_attr:
+            v_pos = {nd: tuple(graph.nodes[nd]["pos"]) for nd in graph.nodes()}
+        else:
+            if graph.number_of_nodes() <= 500:
+                v_pos = nx.kamada_kawai_layout(graph)
+            else:
+                v_pos = nx.spring_layout(
+                    graph, seed=42,
+                    k=1.5 / (graph.number_of_nodes() ** 0.5), iterations=80,
+                )
+
+        # Build node → metric lookups
+        score_map = {row["node"]: row["influence_score"] for row in vuln_data}
+        cp_map = {row["node"]: row["cascade_probability"] for row in vuln_data}
+        time_map = {row["node"]: row["avg_time"] for row in vuln_data}
+        v_node_list = list(graph.nodes())
+        scores = [score_map[nd] for nd in v_node_list]
+
+        # Edges
+        v_edge_x, v_edge_y = [], []
+        for u, v in graph.edges():
+            v_edge_x += [v_pos[u][0], v_pos[v][0], None]
+            v_edge_y += [v_pos[u][1], v_pos[v][1], None]
+
+        density = nx.density(graph)
+        edge_op = max(0.08, min(1.0, 0.6 / (1 + 20 * density)))
+
+        v_edge_trace = go.Scatter(
+            x=v_edge_x, y=v_edge_y,
+            line=dict(width=0.5, color=f"rgba(180,180,180,{edge_op})"),
+            hoverinfo="none", mode="lines",
+        )
+
+        hover_labels = [
+            f"Node {nd}<br>"
+            f"Influence: {score_map[nd]:.4f}<br>"
+            f"Cascade Prob: {cp_map[nd]:.2%}<br>"
+            f"Avg Time: {time_map[nd]:.1f} rounds<br>"
+            f"Degree: {graph.degree(nd)}"
+            for nd in v_node_list
+        ]
+
+        v_node_trace = go.Scatter(
+            x=[v_pos[nd][0] for nd in v_node_list],
+            y=[v_pos[nd][1] for nd in v_node_list],
+            mode="markers",
+            text=hover_labels,
+            hoverinfo="text",
+            marker=dict(
+                size=10 if is_lattice_graph else max(5, min(10, 400 / n_graph)),
+                color=scores,
+                colorscale="RdBu_r",       # red = high (weak), blue = low (strong)
+                showscale=True,
+                colorbar=dict(title="Influence", thickness=12, len=0.6),
+                symbol="square" if is_lattice_graph else "circle",
+                line=dict(width=0.5, color="white"),
+            ),
+        )
+
+        v_layout_kw = dict(
+            title="Node Influence Map",
+            showlegend=False,
+            hovermode="closest",
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            margin=dict(l=20, r=20, t=40, b=20),
+        )
+
+        if is_lattice_graph:
+            all_vx = [v_pos[nd][0] for nd in v_node_list]
+            all_vy = [v_pos[nd][1] for nd in v_node_list]
+            pad = 0.8
+            v_layout_kw["xaxis"].update(
+                range=[min(all_vx) - pad, max(all_vx) + pad],
+                scaleanchor="y", scaleratio=1,
+            )
+            v_layout_kw["yaxis"].update(
+                range=[min(all_vy) - pad, max(all_vy) + pad],
+            )
+            v_layout_kw["width"] = 700
+            v_layout_kw["height"] = 700
+        elif has_pos_attr:
+            v_layout_kw["xaxis"].update(scaleanchor="y", scaleratio=1)
+            v_layout_kw["width"] = 700
+            v_layout_kw["height"] = 700
+
+        fig_vuln = go.Figure(
+            data=[v_edge_trace, v_node_trace],
+            layout=go.Layout(**v_layout_kw),
+        )
+        st.plotly_chart(fig_vuln, use_container_width=not (is_lattice_graph or has_pos_attr))
+
+        # ── Weakest & strongest tables ───────────────────────────────────
+        top_n = min(10, len(df_vuln))
+
+        col_weak, col_strong = st.columns(2)
+
+        with col_weak:
+            st.markdown("#### 🔴 Top Weakest Nodes")
+            st.caption("Highest influence — infecting these triggers the largest cascades.")
+            st.dataframe(
+                df_vuln.head(top_n).style.format({
+                    "influence_score": "{:.4f}",
+                    "cascade_probability": "{:.2%}",
+                    "avg_time": "{:.1f}",
+                    "cascade_std": "{:.4f}",
+                    "betweenness": "{:.4f}",
+                    "closeness": "{:.4f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        with col_strong:
+            st.markdown("#### 🔵 Top Strongest Nodes")
+            st.caption("Lowest influence — infecting these barely spreads.")
+            st.dataframe(
+                df_vuln.tail(top_n).iloc[::-1].style.format({
+                    "influence_score": "{:.4f}",
+                    "cascade_probability": "{:.2%}",
+                    "avg_time": "{:.1f}",
+                    "cascade_std": "{:.4f}",
+                    "betweenness": "{:.4f}",
+                    "closeness": "{:.4f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        # ── Full ranked table (collapsible) ──────────────────────────────
+        with st.expander("📋 Full node ranking"):
+            st.dataframe(
+                df_vuln.style.format({
+                    "influence_score": "{:.4f}",
+                    "cascade_probability": "{:.2%}",
+                    "avg_time": "{:.1f}",
+                    "cascade_std": "{:.4f}",
+                    "betweenness": "{:.4f}",
+                    "closeness": "{:.4f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        # ── Influence vs. structural metrics scatter plots ───────────────
+        st.subheader("Influence vs Structural Metrics")
+        metric_choice = st.selectbox(
+            "Compare influence against:",
+            ["degree", "betweenness", "closeness", "cascade_probability", "avg_time", "cascade_std"],
+            key="vuln_metric",
+        )
+        fig_corr = px.scatter(
+            df_vuln,
+            x=metric_choice,
+            y="influence_score",
+            hover_data=["node", "degree", "betweenness", "closeness"],
+            title=f"Influence Score vs {metric_choice.title()}",
+            labels={"influence_score": "Influence Score", metric_choice: metric_choice.title()},
+            trendline="ols",
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+
+    # ── Node Blocking / Immunisation Analysis ────────────────────────────
+    st.markdown("---")
+    st.markdown("###Node Blocking Analysis")
+    st.caption(
+        "Each node is removed (immunised) from the graph and bootstrap "
+        "percolation is re-run.  Nodes whose removal causes the biggest "
+        "cascade reduction are the most critical to protect."
+    )
+
+    block_trials = st.number_input(
+        "Trials per node (blocking)", 5, 100, 15, step=5, key="block_trials",
+        help="More trials → more stable scores, but slower.",
+    )
+
+    if st.button("▶ Run blocking analysis", key="run_block"):
+        sim = BootstrapPercolation(graph, threshold)
+        progress_bar_b = st.progress(0, text="Evaluating node removals…")
+
+        def _update_block_progress(current, total):
+            progress_bar_b.progress(
+                current / total,
+                text=f"Blocking node {current}/{total}…",
+            )
+
+        block_data, bl_avg, bl_prob = sim.node_blocking_analysis(
+            seed_fraction=seed_fraction,
+            num_trials=block_trials,
+            seed=42,
+            progress_callback=_update_block_progress,
+        )
+        progress_bar_b.empty()
+
+        st.session_state["block_data"] = block_data
+        st.session_state["block_baseline"] = {"avg": bl_avg, "prob": bl_prob}
+
+    if "block_data" in st.session_state:
+        block_data = st.session_state["block_data"]
+        bl_baseline = st.session_state["block_baseline"]
+        df_block = pd.DataFrame(block_data)
+
+        # Baseline summary
+        st.info(
+            f"**Baseline** (original graph): avg cascade fraction "
+            f"**{bl_baseline['avg']:.4f}**, full-cascade probability "
+            f"**{bl_baseline['prob']:.2%}**"
+        )
+
+        # ── Graph coloured by blocking effectiveness ─────────────────
+        st.subheader("Blocking Effectiveness Map")
+        st.caption("🟢 Green = critical to protect  ·  ⚪ Gray = low blocking impact")
+
+        from visualization.visualization import _is_lattice
+
+        is_lattice_graph_b = _is_lattice(graph)
+        has_pos_attr_b = all("pos" in graph.nodes[nd] for nd in graph.nodes())
+
+        if is_lattice_graph_b:
+            b_pos = {nd: (int(nd[1]), -int(nd[0])) for nd in graph.nodes()}
+        elif has_pos_attr_b:
+            b_pos = {nd: tuple(graph.nodes[nd]["pos"]) for nd in graph.nodes()}
+        else:
+            if graph.number_of_nodes() <= 500:
+                b_pos = nx.kamada_kawai_layout(graph)
+            else:
+                b_pos = nx.spring_layout(
+                    graph, seed=42,
+                    k=1.5 / (graph.number_of_nodes() ** 0.5), iterations=80,
+                )
+
+        red_map = {row["node"]: row["cascade_reduction"] for row in block_data}
+        prob_red_map = {row["node"]: row["prob_reduction"] for row in block_data}
+        b_node_list = list(graph.nodes())
+        reductions = [red_map[nd] for nd in b_node_list]
+
+        # Edges
+        b_edge_x, b_edge_y = [], []
+        for u, v in graph.edges():
+            b_edge_x += [b_pos[u][0], b_pos[v][0], None]
+            b_edge_y += [b_pos[u][1], b_pos[v][1], None]
+
+        b_density = nx.density(graph)
+        b_edge_op = max(0.08, min(1.0, 0.6 / (1 + 20 * b_density)))
+
+        b_edge_trace = go.Scatter(
+            x=b_edge_x, y=b_edge_y,
+            line=dict(width=0.5, color=f"rgba(180,180,180,{b_edge_op})"),
+            hoverinfo="none", mode="lines",
+        )
+
+        b_hover = [
+            f"Node {nd}<br>"
+            f"Cascade Reduction: {red_map[nd]:.4f}<br>"
+            f"Prob Reduction: {prob_red_map[nd]:.2%}<br>"
+            f"Degree: {graph.degree(nd)}"
+            for nd in b_node_list
+        ]
+
+        n_graph_b = graph.number_of_nodes()
+        b_node_trace = go.Scatter(
+            x=[b_pos[nd][0] for nd in b_node_list],
+            y=[b_pos[nd][1] for nd in b_node_list],
+            mode="markers",
+            text=b_hover,
+            hoverinfo="text",
+            marker=dict(
+                size=10 if is_lattice_graph_b else max(5, min(10, 400 / n_graph_b)),
+                color=reductions,
+                colorscale="Greens",
+                showscale=True,
+                colorbar=dict(title="Cascade<br>Reduction", thickness=12, len=0.6),
+                symbol="square" if is_lattice_graph_b else "circle",
+                line=dict(width=0.5, color="white"),
+            ),
+        )
+
+        b_layout_kw = dict(
+            title="Blocking Effectiveness Map",
+            showlegend=False,
+            hovermode="closest",
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            margin=dict(l=20, r=20, t=40, b=20),
+        )
+
+        if is_lattice_graph_b:
+            all_bx = [b_pos[nd][0] for nd in b_node_list]
+            all_by = [b_pos[nd][1] for nd in b_node_list]
+            pad = 0.8
+            b_layout_kw["xaxis"].update(
+                range=[min(all_bx) - pad, max(all_bx) + pad],
+                scaleanchor="y", scaleratio=1,
+            )
+            b_layout_kw["yaxis"].update(
+                range=[min(all_by) - pad, max(all_by) + pad],
+            )
+            b_layout_kw["width"] = 700
+            b_layout_kw["height"] = 700
+        elif has_pos_attr_b:
+            b_layout_kw["xaxis"].update(scaleanchor="y", scaleratio=1)
+            b_layout_kw["width"] = 700
+            b_layout_kw["height"] = 700
+
+        fig_block = go.Figure(
+            data=[b_edge_trace, b_node_trace],
+            layout=go.Layout(**b_layout_kw),
+        )
+        st.plotly_chart(fig_block, use_container_width=not (is_lattice_graph_b or has_pos_attr_b))
+
+        # ── Most / least critical tables ─────────────────────────────
+        top_b = min(10, len(df_block))
+
+        col_crit, col_low = st.columns(2)
+
+        with col_crit:
+            st.markdown("#### 🟢 Most Critical to Protect")
+            st.caption("Blocking these nodes reduces cascades the most.")
+            st.dataframe(
+                df_block.head(top_b).style.format({
+                    "cascade_reduction": "{:.4f}",
+                    "prob_reduction": "{:.2%}",
+                    "cascade_blocked": "{:.4f}",
+                    "prob_blocked": "{:.2%}",
+                    "time_blocked": "{:.1f}",
+                    "betweenness": "{:.4f}",
+                    "closeness": "{:.4f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        with col_low:
+            st.markdown("#### ⚪ Least Critical to Protect")
+            st.caption("Blocking these nodes barely changes cascade behaviour.")
+            st.dataframe(
+                df_block.tail(top_b).iloc[::-1].style.format({
+                    "cascade_reduction": "{:.4f}",
+                    "prob_reduction": "{:.2%}",
+                    "cascade_blocked": "{:.4f}",
+                    "prob_blocked": "{:.2%}",
+                    "time_blocked": "{:.1f}",
+                    "betweenness": "{:.4f}",
+                    "closeness": "{:.4f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        with st.expander("📋 Full blocking ranking"):
+            st.dataframe(
+                df_block.style.format({
+                    "cascade_reduction": "{:.4f}",
+                    "prob_reduction": "{:.2%}",
+                    "cascade_blocked": "{:.4f}",
+                    "prob_blocked": "{:.2%}",
+                    "time_blocked": "{:.1f}",
+                    "betweenness": "{:.4f}",
+                    "closeness": "{:.4f}",
+                }),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        # ── Blocking effectiveness vs structural metrics ─────────────
+        st.subheader("Blocking Effectiveness vs Structural Metrics")
+        block_metric = st.selectbox(
+            "Compare cascade reduction against:",
+            ["degree", "betweenness", "closeness", "prob_reduction", "time_blocked"],
+            key="block_metric",
+        )
+        fig_block_corr = px.scatter(
+            df_block,
+            x=block_metric,
+            y="cascade_reduction",
+            hover_data=["node", "degree", "betweenness", "closeness"],
+            title=f"Cascade Reduction vs {block_metric.replace('_', ' ').title()}",
+            labels={
+                "cascade_reduction": "Cascade Reduction",
+                block_metric: block_metric.replace("_", " ").title(),
+            },
+            trendline="ols",
+        )
+        st.plotly_chart(fig_block_corr, use_container_width=True)
+
+# ── Tab 4: Cascade Animation ────────────────────────────────────────────────
 
 with tab_anim:
     st.subheader("Cascade Animation")
@@ -358,7 +805,7 @@ with tab_anim:
             f"({result.cascade_fraction:.2%}) in {result.time_to_cascade} round(s)."
         )
 
-# ── Tab 4: Parameter Sweep ──────────────────────────────────────────────────
+# ── Tab 5: Parameter Sweep ──────────────────────────────────────────────────
 
 with tab_sweep:
     st.subheader("Parameter Sweep")
