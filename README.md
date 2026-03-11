@@ -12,8 +12,8 @@ pip install -r src/requirements.txt
 
 ## Usage
 To run the network risk analysis tool, use the following command:
-```
-bash python src/Main.py 
+```bash
+ python src/Main.py 
 ```
 
 The system will then give the user three options:
@@ -47,6 +47,11 @@ From these metrics a final robustness score is calculated, which is a composite 
 
 ## UI
 To launch the interactive user interface, run the following command:
+```bash 
+streamlit run src/app.py
 ```
-bash streamlit run src/app.py
+
+or run the shell script:
+```bash 
+run.sh
 ```
