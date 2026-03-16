@@ -292,7 +292,7 @@ with tab_sim:
 
         # Averaged metrics
         with st.spinner("Computing averaged metrics…"):
-            metrics = sim.collect_metrics(num_trials=num_trials, seed=42)
+            metrics = sim.collect_metrics(seed_size, num_trials=num_trials, seed=42)
 
         st.session_state["sim_results"] = {
             "result": result,

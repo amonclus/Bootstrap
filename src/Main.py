@@ -66,7 +66,7 @@ def main():
         print(f"  Full cascade:     {result.is_full_cascade}")
 
         # Collect structural metrics (evaluated at the critical seed size)
-        metrics = sim.collect_metrics(num_trials=50, seed=42)
+        metrics = sim.collect_metrics(seed_size, num_trials=50, seed=42)
 
         print("\nStructural metrics (averaged over 50 trials):")
         if metrics.critical_seed_size == n:
