@@ -1,3 +1,7 @@
+"""
+Visualization module
+Responsible for making diagrams and animations of the bootstrap process.
+"""
 from __future__ import annotations
 from typing import List, Dict, Optional
 import matplotlib.pyplot as plt
@@ -7,13 +11,25 @@ import plotly.graph_objects as go
 
 
 def _is_lattice(graph: nx.Graph) -> bool:
-    """Detect whether the graph is a 2-D lattice (nodes are (row, col) tuples)."""
+    """Detect whether the graph is a 2-D lattice (nodes are (row, col) tuples).
+    Args:
+        graph: nx.Graph
+    Returns:
+        bool
+    """
     sample_node = next(iter(graph.nodes()))
     return isinstance(sample_node, tuple) and len(sample_node) == 2
 
 
 def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: Optional[str] = None, show: bool = True):
-
+    """
+        Creates an animation of the cascade process using Plotly. Each frame corresponds to one round of the cascade, showing which nodes are activated.
+    Args:
+        graph: nx.Graph
+        activation_sequence: List of sets, where each set contains the nodes activated in that round of the cascade. The first set should be the initial seeds.
+        save_path: Path to save the animation HTML file (optional)
+        show: If True the animation will be shown on the screen, otherwise it will only be saved (optional)
+    """
     is_lattice = _is_lattice(graph)
     has_pos_attr = all("pos" in graph.nodes[n] for n in graph.nodes())
 
@@ -162,18 +178,20 @@ def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: 
     return fig
 
 
-def plot_phase_transition(
-    sweep_results: List[Dict],
-    x_param: str,
-    y_param: str,
-    xlabel: str,
-    ylabel: str,
-    title: str,
-    threshold_param: Optional[str] = None,
-    figsize=(8, 5),
-    save_path: Optional[str] = None,
-):
-
+def plot_phase_transition(sweep_results: List[Dict], x_param: str, y_param: str, xlabel: str, ylabel: str, title: str, threshold_param: Optional[str] = None, figsize=(8, 5),save_path: Optional[str] = None,):
+    """
+    Plots the phase transition
+    Args:
+        sweep_results: Results of the parameter sweep
+        x_param: Parameter (x-axis)
+        y_param: Parameter (y-axis)
+        xlabel: Label for x-axis
+        ylabel: Label for y-axis
+        title: Title of chart
+        threshold_param: Parameter of the threshold (optional, if provided will plot separate lines for each threshold value)
+        figsize: Size of the figure
+        save_path: Path to save the figure
+    """
     plt.figure(figsize=figsize)
 
     if threshold_param:
@@ -199,16 +217,19 @@ def plot_phase_transition(
     plt.show()
 
 
-def plot_cascade_evolution(
-    cascade_fractions: List[float],
-    rounds: List[int],
-    xlabel="Rounds",
-    ylabel="Cascade fraction",
-    title="Cascade evolution",
-    figsize=(8, 5),
-    save_path: Optional[str] = None,
-):
+def plot_cascade_evolution( cascade_fractions: List[float], rounds: List[int], xlabel="Rounds", ylabel="Cascade fraction", title="Cascade evolution", figsize=(8, 5), save_path: Optional[str] = None,):
+    """
+    Plots the cascade evolution
+    Args:
+        cascade_fractions: Fractions for each round
+        rounds: Rounds of cascade
+        xlabel: Label for x-axis
+        ylabel: Label for y-axis
+        title: Title of chart
+        figsize: Size of the figure
+        save_path: Path to save the figure
 
+    """
     plt.figure(figsize=figsize)
     plt.plot(rounds, cascade_fractions, marker="o")
     plt.xlabel(xlabel)

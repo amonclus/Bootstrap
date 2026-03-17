@@ -1,4 +1,6 @@
-
+"""
+This module provides functions to summarize the structure and properties of graphs.
+"""
 from __future__ import annotations
 
 from typing import Dict
@@ -6,12 +8,34 @@ import networkx as nx
 
 
 def compute_graph_statistics(graph: nx.Graph) -> Dict:
+    """
+    Computes the following graph statistics:
+    nodes: number of nodes
+    edges: number of edges
+    density: density of nodes
+    average_degree: average degree of nodes
+    max_degree: maximum degree of nodes
+    average_clustering: average clustering of nodes
+    num_components: number of connected components
+    largest_component_size: largest component size
+    average_path_length: average path length
+    diameter: diameter of nodes
+
+    Args:
+        graph: nx.Graph
+
+    Returns:
+        Dict
+            Graph statistics as a dictionary with a key for each metric computed
+
+    """
 
     n = graph.number_of_nodes()
     m = graph.number_of_edges()
 
     if n == 0:
         return {}
+
 
     stats = {"nodes": n, "edges": m, "density": nx.density(graph)}
 
@@ -22,7 +46,6 @@ def compute_graph_statistics(graph: nx.Graph) -> Dict:
     stats["average_degree"] = sum(degrees) / n
     stats["max_degree"] = max(degrees)
     stats["min_degree"] = min(degrees)
-
     # Clustering
     stats["average_clustering"] = nx.average_clustering(graph)
 
@@ -45,6 +68,14 @@ def compute_graph_statistics(graph: nx.Graph) -> Dict:
 
 
 def degree_distribution(graph: nx.Graph) -> Dict[int, int]:
+    """
+    Calculates the degree distribution of the graph.
+    Args:
+        graph: nx.Graph
+    Returns:
+        Dict[int, int]
+            Degree distribution mapping degree to count of nodes with that degree
+    """
     distribution = {}
 
     for _, degree in graph.degree():
@@ -54,6 +85,11 @@ def degree_distribution(graph: nx.Graph) -> Dict[int, int]:
 
 
 def print_graph_statistics(graph: nx.Graph) -> None:
+    """
+    Prints all graph statistics collected
+    Args:
+        graph: nx.Graph
+    """
     stats = compute_graph_statistics(graph)
 
     print("Graph statistics:")

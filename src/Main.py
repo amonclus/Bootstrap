@@ -90,7 +90,7 @@ def main():
 
         # Animate if requested
         if record_sequence and activation_sequence:
-            animate_cascade(g, activation_sequence, save_path="cascade_animation.html")
+            animate_cascade(g, activation_sequence)
 
     elif option == "2":
         print("\nComputing graph statistics...\n")

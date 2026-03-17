@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Move to the repository root, regardless of where the script is launched from
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
-
 VENV_DIR=".venv"
 PYTHON_BIN=""
 
@@ -32,10 +28,11 @@ source "$VENV_DIR/bin/activate"
 
 # Ensure pip is available and up to date inside the venv
 python -m ensurepip --upgrade >/dev/null 2>&1 || true
-python -m pip install --upgrade pip
+python -m pip install --upgrade pip --quiet
 
 # Install dependencies into the virtual environment
-python -m pip install -r src/requirements.txt
+echo "Installing dependencies (might take a moment)..."
+python -m pip install -r src/requirements.txt --quiet
 
 # Launch the Streamlit app
 exec python -m streamlit run src/app.py

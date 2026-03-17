@@ -1,3 +1,7 @@
+"""
+Algorithm module responsible for implementing the bootstrap percolation algorithm and collecting all experimental metrics.
+"""
+
 from __future__ import annotations
 
 import random
@@ -11,6 +15,9 @@ from simulation.seed_selection import random_seeds
 
 @dataclass
 class BootstrapResult:
+    """
+    Stores the result of the bootstrap percolation algorithm.
+    """
     infected_nodes: set[int] = field(default_factory=set)
     cascade_size: int = 0
     cascade_fraction: float = 0.0
@@ -20,6 +27,9 @@ class BootstrapResult:
 
 @dataclass
 class PercolationMetrics:
+    """
+    Stores the metrics collected during the percolation algorithm.
+    """
     cascade_size: float = 0.0  # average cascade fraction (infected / total nodes)
     critical_seed_size: int = 0  # minimum seeds for full cascade
     cascade_probability: float = 0.0  # probability of full cascade
@@ -28,13 +38,29 @@ class PercolationMetrics:
 
 
 class BootstrapPercolation:
-
+    """
+    Class responsible for implementing the bootstrap percolation algorithm.
+    """
     def __init__(self, graph: nx.Graph, threshold: int = 2) -> None:
         self.graph = graph
         self.threshold = threshold
         self.n = graph.number_of_nodes()
 
     def run(self, seed_nodes: set[int], record_sequence: bool = False) -> tuple[BootstrapResult, list[set]]:
+        """
+        Runs the main bootstrap percolation algorithm starting from the given seed nodes.
+        Args:
+            seed_nodes: set[int]
+                Initial set of infected nodes (the "seed" of the cascade).
+                The algorithm will start with these nodes infected and then
+                iteratively infect new nodes based on the threshold condition.
+            record_sequence: bool
+                If True, the method will record each step of the percolation algorithm for later display.
+
+        Returns:
+            result : BootstrapResult
+
+        """
         infected = set(seed_nodes)
         rounds = 0
         activation_sequence = []
@@ -73,7 +99,24 @@ class BootstrapPercolation:
         return result, activation_sequence if record_sequence else []
 
     def cascade_probability(self, seed_size: int, num_trials: int = 100, seed: Optional[int] = None,) -> tuple[float, float, float]:
+        """
+        Measures the cascade probability of the studied graph.
+        Args:
+            seed_size: int
+                Size of the set of initially infected nodes.
+            num_trials:
+                Number of independent trials to run for estimating the probability.
+            seed:
+                Optional random seed for reproducibility. If provided, it will be used to seed the random number generator before selecting seed nodes in each trial.
 
+        Returns:
+            prob: int
+                Probability of cascade.
+            avg_fraction: float
+                Average fraction of infected nodes across all trials.
+            avg_time: float
+                Average number of rounds until cascade stabilisation across all trials.
+        """
         if seed is not None:
             random.seed(seed)
 
@@ -96,6 +139,21 @@ class BootstrapPercolation:
         return prob, avg_fraction, avg_time
 
     def find_critical_seed_size(self, num_trials: int = 50, cascade_threshold: float = 1.0, probability_threshold: float = 0.5, seed: Optional[int] = None, ) -> int:
+        """
+        Finds the critical seed size based on the threshold condition.
+        Args:
+            num_trials: int
+                Number of independent trials to run for estimating the probability at each seed size.
+            cascade_threshold: float
+                    Fraction of nodes that must be infected for a trial to be considered a "full cascade". Default is 1.0 (i.e., all nodes must be infected).
+            probability_threshold: float
+                The minimum probability of achieving a full cascade required to consider a seed size as critical. Default is 0.5 (i.e., at least 50% of trials must result in a full cascade).
+            seed: int
+                Optional random seed for reproducibility. If provided, it will be used to seed the random number generator before selecting seed nodes in each trial.
+        Returns:
+            result: int
+                The critical seed size, defined as the smallest number of initially infected nodes required to achieve a full cascade with at least the specified probability threshold.
+        """
         if seed is not None:
             random.seed(seed)
 
@@ -114,14 +172,43 @@ class BootstrapPercolation:
         return result
 
     def find_percolation_threshold(self, num_trials: int = 50, probability_threshold: float = 0.5, seed: Optional[int] = None, ) -> float:
+        """
+        Finds the percolation threshold based on the threshold condition.
+        Args:
+            num_trials: int
+                Number of independent trials to run for estimating the probability at each seed size.
+            probability_threshold: float
+                The minimum probability of achieving a full cascade required to consider a seed size as critical. Default is 0.5 (i.e., at least 50% of trials must result in a full cascade).
+            seed: int
+                Optional random seed for reproducibility. If provided, it will be used to seed the random number generator before selecting seed nodes in each trial.
+
+        Returns:
+            result: float
+                The percolation threshold, defined as the critical seed size divided by the total number of nodes in the graph. This represents the minimum fraction of initially infected nodes required to achieve a full cascade with at least the specified probability threshold.
+        """
         critical = self.find_critical_seed_size(
             num_trials=num_trials,
             probability_threshold=probability_threshold,
             seed=seed,
         )
-        return critical / self.n if self.n > 0 else 0.0
+        result = critical / self.n if self.n > 0 else 0.0
+        return result
 
     def collect_metrics(self, seed_size:int, num_trials: int = 100, seed: Optional[int] = None, ) -> PercolationMetrics:
+        """
+        Collects all metrics related to the percolation process, including cascade size, critical seed size, cascade probability, time to cascade, and percolation threshold.
+        Args:
+            seed_size: int
+                Size of the set of initially infected nodes for evaluating cascade probability and average cascade size.
+            num_trials: int
+                Number of independent trials to run for estimating the probability at each seed size.
+            seed: int
+                Optional random seed for reproducibility. If provided, it will be used to seed the random number generator before selecting seed nodes in each trial.
+
+        Returns:
+            result: PercolationMetrics
+                An object containing all collected metrics related to the percolation process.
+        """
         # Find critical seed size and percolation threshold
         critical_seed = self.find_critical_seed_size(num_trials=num_trials, seed=seed)
 
@@ -133,13 +220,15 @@ class BootstrapPercolation:
         # Estimate cascade probability and averages at that seed size
         prob, avg_fraction, avg_time = self.cascade_probability(seed_size=eval_size, num_trials=num_trials, seed=seed)
 
-        return PercolationMetrics(
+        result = PercolationMetrics(
             cascade_size=avg_fraction,
             critical_seed_size=critical_seed,
             cascade_probability=prob,
             time_to_cascade=avg_time,
             percolation_threshold=percolation_thresh,
         )
+
+        return result
 
     # ── Node vulnerability analysis ─────────────────────────────────────
 
@@ -217,13 +306,7 @@ class BootstrapPercolation:
 
     # ── Node blocking / immunisation analysis ───────────────────────────
 
-    def node_blocking_analysis(
-        self,
-        seed_fraction: float = 0.05,
-        num_trials: int = 20,
-        seed: Optional[int] = None,
-        progress_callback=None,
-    ) -> tuple[list[dict], float, float]:
+    def node_blocking_analysis(self,seed_fraction: float = 0.05,num_trials: int = 20,seed: Optional[int] = None,progress_callback=None,) -> tuple[list[dict], float, float]:
         """Assess how much each node's removal reduces cascade spread.
 
         For every node *v* the method builds a subgraph *G − {v}*,

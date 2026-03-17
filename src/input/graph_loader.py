@@ -1,7 +1,15 @@
+"""
+Reads a file containing a graph in various formats and loads it into a NetworkX graph object.
+"""
 import networkx as nx
 
 
 def load_graph_from_dimacs(path: str):
+    """
+    Loads a graph in dimacs format.
+    Args:
+        path: path to the dimacs file
+    """
     g = nx.Graph()
 
     with open(path, "r") as f:
@@ -13,7 +21,17 @@ def load_graph_from_dimacs(path: str):
     return g
 
 def load_graph_from_edge_list(path: str):
+    """
+    Loads a graph in edge list.
+    Args:
+        path: path to the edge list file
+    """
     return nx.from_edgelist(nx.read_edgelist(path))
 
 def load_graph_from_gml(path: str):
+    """
+    Loads a graph in gml format.
+    Args:
+        path: path to the gml file
+    """
     return nx.read_gml(path)

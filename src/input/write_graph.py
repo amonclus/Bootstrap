@@ -1,4 +1,10 @@
 def write_graph(graph, output_file):
+    """
+    Writes a graph in dimacs format.
+    Args:
+        graph: graph in dimacs format
+        output_file: path to output file
+    """
     with open(output_file, "w") as f:
         nodes = list(graph.nodes())
         node_to_id = {node: i+1 for i, node in enumerate(nodes)}
