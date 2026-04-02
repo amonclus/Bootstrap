@@ -92,11 +92,28 @@ def animate_cascade(graph: nx.Graph, activation_sequence: List[set], save_path: 
     )
 
     # Build frames – each frame must update the node trace (index 1)
+    # activation_sequence entries are either set (bootstrap) or (newly_infected, newly_recovered) tuple (SIR)
+    is_sir = activation_sequence and isinstance(activation_sequence[0], tuple)
+
     frames = []
-    activated_so_far = set()
-    for i, activated in enumerate(activation_sequence):
-        activated_so_far |= activated
-        node_colors = ['red' if n in activated_so_far else 'lightgray' for n in node_list]
+    ever_infected: set = set()
+    recovered_so_far: set = set()
+    for i, entry in enumerate(activation_sequence):
+        if is_sir:
+            newly_infected, newly_recovered = entry
+            ever_infected |= newly_infected
+            recovered_so_far |= newly_recovered
+            def _color(n):
+                if n in recovered_so_far:
+                    return 'green'
+                if n in ever_infected:
+                    return 'red'
+                return 'lightgray'
+            node_colors = [_color(n) for n in node_list]
+        else:
+            ever_infected |= entry
+            node_colors = ['red' if n in ever_infected else 'lightgray' for n in node_list]
+
         frames.append(go.Frame(
             data=[
                 edge_trace,  # keep edges unchanged

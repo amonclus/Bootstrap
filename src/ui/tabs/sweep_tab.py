@@ -40,6 +40,7 @@ def render_sweep_tab(graph: nx.Graph, config: SidebarConfig) -> None:
                     fracs,
                     threshold=config.threshold,
                     num_trials=sweep_trials,
+                    strategy=config.seed_strategy,
                 )
             _render_seed_fraction_charts(pd.DataFrame(data))
 
@@ -51,7 +52,7 @@ def render_sweep_tab(graph: nx.Graph, config: SidebarConfig) -> None:
 
         if st.button("▶ Run sweep", key="sweep_er"):
             with st.spinner("Sweeping ER probabilities…"):
-                data = sweep_er_probability(er_n, prob_list, threshold=er_k, num_trials=sweep_trials)
+                data = sweep_er_probability(er_n, prob_list, threshold=er_k, num_trials=sweep_trials, strategy=config.seed_strategy)
             df = pd.DataFrame(data)
             st.dataframe(df, use_container_width=True)
             fig = px.line(df, x="p", y="cascade_probability", markers=True, title="Cascade Probability vs p")
@@ -65,7 +66,7 @@ def render_sweep_tab(graph: nx.Graph, config: SidebarConfig) -> None:
 
         if st.button("▶ Run sweep", key="sweep_geo"):
             with st.spinner("Sweeping geometric radii…"):
-                data = sweep_geometric_radius(geo_n, radii_list, threshold=geo_k, num_trials=sweep_trials)
+                data = sweep_geometric_radius(geo_n, radii_list, threshold=geo_k, num_trials=sweep_trials, strategy=config.seed_strategy)
             df = pd.DataFrame(data)
             st.dataframe(df, use_container_width=True)
             fig = px.line(df, x="radius", y="cascade_probability", markers=True, title="Cascade Probability vs Radius")
@@ -78,7 +79,7 @@ def render_sweep_tab(graph: nx.Graph, config: SidebarConfig) -> None:
 
         if st.button("▶ Run sweep", key="sweep_lat"):
             with st.spinner("Sweeping lattice sizes…"):
-                data = sweep_lattice_size(sizes_list, threshold=lat_k, num_trials=sweep_trials)
+                data = sweep_lattice_size(sizes_list, threshold=lat_k, num_trials=sweep_trials, strategy=config.seed_strategy)
             df = pd.DataFrame(data)
             st.dataframe(df, use_container_width=True)
             fig = px.line(df, x="grid_size", y="cascade_probability", markers=True, title="Cascade Probability vs Grid Size")

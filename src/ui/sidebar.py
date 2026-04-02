@@ -15,11 +15,12 @@ from input.graph_loader import (
     load_graph_from_edge_list,
     load_graph_from_gml,
 )
+from simulation.seed_selection import SeedStrategy
 from ui.state import SessionKeys, SidebarConfig
 
 
-def render_sidebar() -> SidebarConfig:
-    st.sidebar.header("Graph and algorithm Configuration")
+def render_sidebar(model: str = "bootstrap") -> SidebarConfig:
+    st.sidebar.header("Graph Configuration")
 
     source = st.sidebar.radio("Graph source", ["Generate", "Upload file"])
 
@@ -30,16 +31,63 @@ def render_sidebar() -> SidebarConfig:
 
     st.sidebar.markdown("---")
     st.sidebar.header("Simulation Parameters")
-    threshold = st.sidebar.number_input("Bootstrap threshold (k)", 1, 50, 2)
+
     seed_fraction = st.sidebar.slider(
-        "Initial infection probability", 0.01, 1.0, 0.05, 0.01
+        "Initial infection fraction", 0.01, 1.0, 0.05, 0.01
     )
     num_trials = st.sidebar.number_input("Number of trials", 10, 500, 50, step=10)
+
+    if model == "bootstrap":
+        threshold = st.sidebar.number_input("Bootstrap threshold (k)", 1, 50, 2)
+        beta, gamma, switch_fraction = 0.3, 0.1, 0.2
+    elif model == "sir":
+        threshold = 2
+        beta = st.sidebar.slider("Transmission rate (β)", 0.01, 1.0, 0.3, 0.01)
+        gamma = st.sidebar.slider("Recovery rate (γ)", 0.01, 1.0, 0.1, 0.01)
+        switch_fraction = 0.2
+    else:
+        # Hybrid models — show only the parameters each model uses
+        _MODELS_WITH_THRESHOLD = {"h1", "h2"}
+        if model in _MODELS_WITH_THRESHOLD:
+            threshold = st.sidebar.number_input("Bootstrap threshold (k)", 1, 50, 2)
+        else:
+            threshold = 2  # unused default for models without a hard threshold
+
+        beta = st.sidebar.slider("Transmission rate (β)", 0.01, 1.0, 0.3, 0.01)
+        gamma = st.sidebar.slider("Recovery rate (γ)", 0.01, 1.0, 0.1, 0.01)
+
+        if model == "h2":
+            switch_fraction = st.sidebar.slider(
+                "Switch threshold (f)",
+                0.01, 1.0, 0.2, 0.01,
+                help="Fraction of the population that must be ever-infected before the "
+                     "model switches from SIR to bootstrap percolation mode.",
+            )
+        else:
+            switch_fraction = 0.2
+
+    _STRATEGY_LABELS = {
+        "Random": SeedStrategy.RANDOM,
+        "High Degree": SeedStrategy.HIGH_DEGREE,
+        "High k-core": SeedStrategy.HIGH_KCORE,
+    }
+    strategy_label = st.sidebar.selectbox("Seeding strategy", list(_STRATEGY_LABELS))
+    seed_strategy = _STRATEGY_LABELS[strategy_label]
+
+    st.sidebar.markdown("---")
+    if st.sidebar.button("↩ Change model"):
+        st.session_state.pop(SessionKeys.MODEL, None)
+        st.session_state.pop(SessionKeys.GRAPH, None)
+        st.rerun()
 
     return SidebarConfig(
         threshold=int(threshold),
         seed_fraction=float(seed_fraction),
         num_trials=int(num_trials),
+        beta=float(beta),
+        gamma=float(gamma),
+        seed_strategy=seed_strategy,
+        switch_fraction=float(switch_fraction),
     )
 
 

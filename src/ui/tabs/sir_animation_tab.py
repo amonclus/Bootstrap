@@ -3,14 +3,14 @@ from __future__ import annotations
 import networkx as nx
 import streamlit as st
 
-from simulation.bootstrap import BootstrapPercolation
 from simulation.seed_selection import select_seeds
+from simulation.sir import SIRModel
 from ui.state import SidebarConfig
 from visualization.visualization import animate_cascade
 
 
-def render_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
-    st.subheader("Cascade Animation")
+def render_sir_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
+    st.subheader("Epidemic Animation")
 
     if graph.number_of_nodes() > 300:
         st.warning(
@@ -18,10 +18,10 @@ def render_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
             "The current graph has %d nodes - layout may be slow." % graph.number_of_nodes()
         )
 
-    if st.button("▶ Animate cascade", key="run_anim"):
+    if st.button("▶ Animate epidemic", key="sir_run_anim"):
         n = graph.number_of_nodes()
         seed_size = max(1, int(config.seed_fraction * n))
-        sim = BootstrapPercolation(graph, config.threshold)
+        sim = SIRModel(graph, beta=config.beta, gamma=config.gamma)
         seed_nodes = set(select_seeds(graph, seed_size, config.seed_strategy))
 
         with st.spinner("Running simulation & building animation…"):
@@ -31,7 +31,6 @@ def render_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
         st.plotly_chart(fig, use_container_width=True)
 
         st.info(
-            f"Cascade infected {result.cascade_size}/{n} nodes "
-            f"({result.cascade_fraction:.2%}) in {result.time_to_cascade} round(s)."
+            f"Epidemic reached {result.epidemic_size}/{n} nodes "
+            f"({result.epidemic_fraction:.2%}) in {result.time_to_epidemic} round(s)."
         )
-

@@ -6,9 +6,10 @@ from __future__ import annotations
 from typing import List, Dict
 import networkx as nx
 from simulation.bootstrap import BootstrapPercolation
+from simulation.seed_selection import SeedStrategy
 
 
-def sweep_er_probability(n: int, probabilities: List[float], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
+def sweep_er_probability(n: int, probabilities: List[float], threshold: int = 2, num_trials: int = 50, strategy: SeedStrategy | str = SeedStrategy.RANDOM) -> List[Dict]:
     """
     Sweeps over different probabilities for the Erdos-Renyi graph.
 
@@ -36,7 +37,8 @@ def sweep_er_probability(n: int, probabilities: List[float], threshold: int = 2,
         g = nx.erdos_renyi_graph(n, p)
 
         sim = BootstrapPercolation(g, threshold)
-        metrics = sim.collect_metrics(num_trials=num_trials)
+        seed_size = max(1, g.number_of_nodes() // 10)
+        metrics = sim.collect_metrics(seed_size=seed_size, num_trials=num_trials, strategy=strategy)
 
         results.append(
             {
@@ -55,7 +57,7 @@ def sweep_er_probability(n: int, probabilities: List[float], threshold: int = 2,
     return results
 
 
-def sweep_geometric_radius(n: int,radii: List[float], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
+def sweep_geometric_radius(n: int, radii: List[float], threshold: int = 2, num_trials: int = 50, strategy: SeedStrategy | str = SeedStrategy.RANDOM) -> List[Dict]:
     """
     Sweeps over different radii for the geometric radius.
 
@@ -83,7 +85,8 @@ def sweep_geometric_radius(n: int,radii: List[float], threshold: int = 2, num_tr
         g = nx.random_geometric_graph(n, r)
 
         sim = BootstrapPercolation(g, threshold)
-        metrics = sim.collect_metrics(num_trials=num_trials)
+        seed_size = max(1, g.number_of_nodes() // 10)
+        metrics = sim.collect_metrics(seed_size=seed_size, num_trials=num_trials, strategy=strategy)
 
         results.append(
             {
@@ -102,7 +105,7 @@ def sweep_geometric_radius(n: int,radii: List[float], threshold: int = 2, num_tr
     return results
 
 
-def sweep_lattice_size(sizes: List[int], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
+def sweep_lattice_size(sizes: List[int], threshold: int = 2, num_trials: int = 50, strategy: SeedStrategy | str = SeedStrategy.RANDOM) -> List[Dict]:
     """
     Sweeps over different lattice sizes.
     Args:
@@ -130,7 +133,8 @@ def sweep_lattice_size(sizes: List[int], threshold: int = 2, num_trials: int = 5
         g = nx.convert_node_labels_to_integers(g)
 
         sim = BootstrapPercolation(g, threshold)
-        metrics = sim.collect_metrics(num_trials=num_trials)
+        seed_size = max(1, g.number_of_nodes() // 10)
+        metrics = sim.collect_metrics(seed_size=seed_size, num_trials=num_trials, strategy=strategy)
 
         results.append(
             {
@@ -149,7 +153,7 @@ def sweep_lattice_size(sizes: List[int], threshold: int = 2, num_trials: int = 5
     return results
 
 
-def sweep_seed_fraction(graph: nx.Graph, seed_fractions: List[float], threshold: int = 2, num_trials: int = 50,) -> List[Dict]:
+def sweep_seed_fraction(graph: nx.Graph, seed_fractions: List[float], threshold: int = 2, num_trials: int = 50, strategy: SeedStrategy | str = SeedStrategy.RANDOM) -> List[Dict]:
     """
     Sweeps over different seed fractions (initially infected nodes) for a given graph.
 
@@ -179,7 +183,7 @@ def sweep_seed_fraction(graph: nx.Graph, seed_fractions: List[float], threshold:
 
         sim = BootstrapPercolation(graph, threshold)
         prob, avg_fraction, avg_time = sim.cascade_probability(
-            seed_size=seed_size, num_trials=num_trials
+            seed_size=seed_size, num_trials=num_trials, strategy=strategy
         )
 
         results.append(
