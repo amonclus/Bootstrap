@@ -36,6 +36,31 @@ class SessionKeys:
     H3_VULN_DATA = "h3_vuln_data"
     H3_BLOCK_DATA = "h3_block_data"
     H3_BLOCK_BASELINE = "h3_block_baseline"
+    # SIS model
+    SIS_SIM_RESULTS = "sis_sim_results"
+    SIS_VULN_DATA = "sis_vuln_data"
+    SIS_BLOCK_DATA = "sis_block_data"
+    SIS_BLOCK_BASELINE = "sis_block_baseline"
+    # WTM model
+    WTM_SIM_RESULTS = "wtm_sim_results"
+    WTM_VULN_DATA = "wtm_vuln_data"
+    WTM_BLOCK_DATA = "wtm_block_data"
+    WTM_BLOCK_BASELINE = "wtm_block_baseline"
+    # H4 hybrid model
+    H4_SIM_RESULTS = "h4_sim_results"
+    H4_VULN_DATA = "h4_vuln_data"
+    H4_BLOCK_DATA = "h4_block_data"
+    H4_BLOCK_BASELINE = "h4_block_baseline"
+    # H5 hybrid model
+    H5_SIM_RESULTS = "h5_sim_results"
+    H5_VULN_DATA = "h5_vuln_data"
+    H5_BLOCK_DATA = "h5_block_data"
+    H5_BLOCK_BASELINE = "h5_block_baseline"
+    # H6 hybrid model
+    H6_SIM_RESULTS = "h6_sim_results"
+    H6_VULN_DATA = "h6_vuln_data"
+    H6_BLOCK_DATA = "h6_block_data"
+    H6_BLOCK_BASELINE = "h6_block_baseline"
 
 
 @dataclass(frozen=True)
@@ -46,7 +71,8 @@ class SidebarConfig:
     beta: float = 0.3
     gamma: float = 0.1
     seed_strategy: str = SeedStrategy.RANDOM
-    switch_fraction: float = 0.2  # H2: fraction of population infected before switching phases
+    switch_fraction: float = 0.2  # H2/H5: fraction of population infected before switching phases
+    phi: float = 0.3              # WTM/H4/H5/H6: fractional neighbour threshold
 
 
 @dataclass(frozen=True)

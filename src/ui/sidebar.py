@@ -37,6 +37,7 @@ def render_sidebar(model: str = "bootstrap") -> SidebarConfig:
     )
     num_trials = st.sidebar.number_input("Number of trials", 10, 500, 50, step=10)
 
+    phi = 0.3
     if model == "bootstrap":
         threshold = st.sidebar.number_input("Bootstrap threshold (k)", 1, 50, 2)
         beta, gamma, switch_fraction = 0.3, 0.1, 0.2
@@ -45,6 +46,18 @@ def render_sidebar(model: str = "bootstrap") -> SidebarConfig:
         beta = st.sidebar.slider("Transmission rate (β)", 0.01, 1.0, 0.3, 0.01)
         gamma = st.sidebar.slider("Recovery rate (γ)", 0.01, 1.0, 0.1, 0.01)
         switch_fraction = 0.2
+    elif model == "sis":
+        threshold = 2
+        beta = st.sidebar.slider("Transmission rate (β)", 0.01, 1.0, 0.3, 0.01)
+        gamma = st.sidebar.slider("Recovery rate (μ)", 0.01, 1.0, 0.1, 0.01)
+        switch_fraction = 0.2
+    elif model == "wtm":
+        threshold = 2
+        beta, gamma, switch_fraction = 0.3, 0.1, 0.2
+        phi = st.sidebar.slider(
+            "Fractional threshold (φ)", 0.01, 1.0, 0.3, 0.01,
+            help="A node activates when this fraction of its neighbours are infected.",
+        )
     else:
         # Hybrid models — show only the parameters each model uses
         _MODELS_WITH_THRESHOLD = {"h1", "h2"}
@@ -53,15 +66,26 @@ def render_sidebar(model: str = "bootstrap") -> SidebarConfig:
         else:
             threshold = 2  # unused default for models without a hard threshold
 
-        beta = st.sidebar.slider("Transmission rate (β)", 0.01, 1.0, 0.3, 0.01)
+        _MODELS_WITH_PHI = {"h4", "h5", "h6"}
+        if model in _MODELS_WITH_PHI:
+            phi = st.sidebar.slider(
+                "Fractional threshold (φ)", 0.01, 1.0, 0.3, 0.01,
+                help="WTM threshold: a node activates when this fraction of its neighbours are infected.",
+            )
+
+        _MODELS_WITH_BETA = {"h1", "h2", "h3", "h4", "h5"}
+        if model in _MODELS_WITH_BETA:
+            beta = st.sidebar.slider("Transmission rate (β)", 0.01, 1.0, 0.3, 0.01)
+        else:
+            beta = 0.3
+
         gamma = st.sidebar.slider("Recovery rate (γ)", 0.01, 1.0, 0.1, 0.01)
 
-        if model == "h2":
+        if model in {"h2", "h5"}:
             switch_fraction = st.sidebar.slider(
                 "Switch threshold (f)",
                 0.01, 1.0, 0.2, 0.01,
-                help="Fraction of the population that must be ever-infected before the "
-                     "model switches from SIR to bootstrap percolation mode.",
+                help="Fraction of the population that must be infected before the model switches phases.",
             )
         else:
             switch_fraction = 0.2
@@ -88,6 +112,7 @@ def render_sidebar(model: str = "bootstrap") -> SidebarConfig:
         gamma=float(gamma),
         seed_strategy=seed_strategy,
         switch_fraction=float(switch_fraction),
+        phi=float(phi),
     )
 
 
