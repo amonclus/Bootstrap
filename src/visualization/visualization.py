@@ -17,6 +17,8 @@ def _is_lattice(graph: nx.Graph) -> bool:
     Returns:
         bool
     """
+    if graph.number_of_nodes() == 0:
+        return False
     sample_node = next(iter(graph.nodes()))
     return isinstance(sample_node, tuple) and len(sample_node) == 2
 

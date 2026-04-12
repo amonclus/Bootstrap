@@ -57,9 +57,20 @@ def compute_graph_statistics(graph: nx.Graph) -> Dict:
     # Only compute path metrics on largest connected component
     largest_component = graph.subgraph(max(components, key=len))
 
-    if largest_component.number_of_nodes() > 1:
+    lc_n = largest_component.number_of_nodes()
+    if lc_n > 1 and lc_n <= 500:
         stats["average_path_length"] = nx.average_shortest_path_length(largest_component)
         stats["diameter"] = nx.diameter(largest_component)
+    elif lc_n > 500:
+        # Too expensive for large graphs; estimate via sampling
+        import random
+        sample = random.sample(list(largest_component.nodes()), min(200, lc_n))
+        lengths = []
+        for src in sample:
+            sp = nx.single_source_shortest_path_length(largest_component, src)
+            lengths.extend(sp.values())
+        stats["average_path_length"] = sum(lengths) / len(lengths) if lengths else 0
+        stats["diameter"] = -1  # not computed for large graphs
     else:
         stats["average_path_length"] = 0
         stats["diameter"] = 0

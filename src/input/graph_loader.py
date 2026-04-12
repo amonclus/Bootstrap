@@ -26,7 +26,16 @@ def load_graph_from_edge_list(path: str):
     Args:
         path: path to the edge list file
     """
-    return nx.from_edgelist(nx.read_edgelist(path))
+    g = nx.Graph()
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) >= 2:
+                g.add_edge(parts[0], parts[1])
+    return g
 
 def load_graph_from_gml(path: str):
     """

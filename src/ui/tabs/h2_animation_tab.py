@@ -8,6 +8,8 @@ from simulation.seed_selection import select_seeds
 from ui.state import SidebarConfig
 from visualization.visualization import animate_cascade
 
+LARGE_GRAPH_THRESHOLD = 500
+
 
 def render_h2_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
     st.subheader("H2 Sequential Hybrid — Cascade Animation")
@@ -15,15 +17,13 @@ def render_h2_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
         "Red nodes are infected, green nodes have recovered (Phase 1 only). "
         "The animation shows both the SIR phase and the bootstrap phase as a single sequence."
     )
+    n = graph.number_of_nodes()
+    large = n > LARGE_GRAPH_THRESHOLD
 
-    if graph.number_of_nodes() > 300:
-        st.warning(
-            "Animation works best with smaller graphs (<= 300 nodes). "
-            "The current graph has %d nodes - layout may be slow." % graph.number_of_nodes()
-        )
+    if large:
+        st.info(f"Graph has {n} nodes — animation is disabled. Simulation results will be shown as text.")
 
-    if st.button("▶ Animate cascade", key="h2_run_anim"):
-        n = graph.number_of_nodes()
+    if st.button("▶ Run simulation" if large else "▶ Animate cascade", key="h2_run_anim"):
         seed_size = max(1, int(config.seed_fraction * n))
         sim = H2Model(
             graph,
@@ -34,11 +34,14 @@ def render_h2_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
         )
         seed_nodes = set(select_seeds(graph, seed_size, config.seed_strategy))
 
-        with st.spinner("Running simulation & building animation…"):
-            result, activation_sequence = sim.run(seed_nodes, record_sequence=True)
-            fig = animate_cascade(graph, activation_sequence, show=False)
-
-        st.plotly_chart(fig, use_container_width=True)
+        if large:
+            with st.spinner("Running simulation…"):
+                result, _ = sim.run(seed_nodes, record_sequence=False)
+        else:
+            with st.spinner("Running simulation & building animation…"):
+                result, activation_sequence = sim.run(seed_nodes, record_sequence=True)
+                fig = animate_cascade(graph, activation_sequence, show=False)
+            st.plotly_chart(fig, use_container_width=True)
 
         if result.switched:
             st.info(

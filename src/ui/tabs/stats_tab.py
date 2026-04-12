@@ -10,68 +10,77 @@ from analysis.graph_statistics import compute_graph_statistics, degree_distribut
 from ui.charts import apply_layout_geometry, build_edge_trace, resolve_positions
 
 
-def render_stats_tab(graph: nx.Graph) -> None:
-    st.subheader("Graph Visualisation")
+LARGE_GRAPH_THRESHOLD = 500
 
-    pos, is_lattice_graph, has_pos_attr = resolve_positions(graph)
-    node_list = list(graph.nodes())
+
+def render_stats_tab(graph: nx.Graph) -> None:
     n_nodes = graph.number_of_nodes()
 
-    edge_width = 0.5 if nx.density(graph) > 0.15 else 0.8
-    edge_trace = build_edge_trace(graph, pos, edge_width=edge_width)
-
-    if is_lattice_graph:
-        node_marker = dict(
-            size=10,
-            color="steelblue",
-            symbol="square",
-            line=dict(width=1, color="darkgray"),
+    st.subheader("Graph Visualisation")
+    if n_nodes > LARGE_GRAPH_THRESHOLD:
+        st.info(
+            f"Graph has {n_nodes} nodes — too large to render. "
+            "Structural statistics are shown below."
         )
-        hover_text = [f"({n[0]},{n[1]})" for n in node_list]
-    elif has_pos_attr:
-        degrees = [graph.degree(n) for n in node_list]
-        node_marker = dict(
-            size=7,
-            color=degrees,
-            colorscale="Viridis",
-            showscale=True,
-            colorbar=dict(title="Degree", thickness=12, len=0.5),
-            line=dict(width=0.5, color="white"),
-        )
-        hover_text = [f"Node {n}  (deg {graph.degree(n)})" for n in node_list]
     else:
-        degrees = [graph.degree(n) for n in node_list]
-        node_marker = dict(
-            size=int(max(4, min(8, 300 / n_nodes))),
-            color=degrees,
-            colorscale="Plasma",
-            showscale=True,
-            colorbar=dict(title="Degree", thickness=12, len=0.5),
-            line=dict(width=0.5, color="white"),
+        pos, is_lattice_graph, has_pos_attr = resolve_positions(graph)
+        node_list = list(graph.nodes())
+
+        edge_width = 0.5 if nx.density(graph) > 0.15 else 0.8
+        edge_trace = build_edge_trace(graph, pos, edge_width=edge_width)
+
+        if is_lattice_graph:
+            node_marker = dict(
+                size=10,
+                color="steelblue",
+                symbol="square",
+                line=dict(width=1, color="darkgray"),
+            )
+            hover_text = [f"({n[0]},{n[1]})" for n in node_list]
+        elif has_pos_attr:
+            degrees = [graph.degree(n) for n in node_list]
+            node_marker = dict(
+                size=7,
+                color=degrees,
+                colorscale="Viridis",
+                showscale=True,
+                colorbar=dict(title="Degree", thickness=12, len=0.5),
+                line=dict(width=0.5, color="white"),
+            )
+            hover_text = [f"Node {n}  (deg {graph.degree(n)})" for n in node_list]
+        else:
+            degrees = [graph.degree(n) for n in node_list]
+            node_marker = dict(
+                size=int(max(4, min(8, 300 / n_nodes))),
+                color=degrees,
+                colorscale="Plasma",
+                showscale=True,
+                colorbar=dict(title="Degree", thickness=12, len=0.5),
+                line=dict(width=0.5, color="white"),
+            )
+            hover_text = [f"Node {n}  (deg {graph.degree(n)})" for n in node_list]
+
+        node_trace = go.Scatter(
+            x=[pos[n][0] for n in node_list],
+            y=[pos[n][1] for n in node_list],
+            mode="markers",
+            text=hover_text,
+            hoverinfo="text",
+            marker=node_marker,
         )
-        hover_text = [f"Node {n}  (deg {graph.degree(n)})" for n in node_list]
 
-    node_trace = go.Scatter(
-        x=[pos[n][0] for n in node_list],
-        y=[pos[n][1] for n in node_list],
-        mode="markers",
-        text=hover_text,
-        hoverinfo="text",
-        marker=node_marker,
-    )
+        layout_kw = dict(
+            title="Network Structure",
+            showlegend=False,
+            hovermode="closest",
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            margin=dict(l=20, r=20, t=40, b=20),
+        )
+        apply_layout_geometry(layout_kw, node_list, pos, is_lattice_graph, has_pos_attr)
 
-    layout_kw = dict(
-        title="Network Structure",
-        showlegend=False,
-        hovermode="closest",
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        margin=dict(l=20, r=20, t=40, b=20),
-    )
-    apply_layout_geometry(layout_kw, node_list, pos, is_lattice_graph, has_pos_attr)
-
-    fig_graph = go.Figure(data=[edge_trace, node_trace], layout=go.Layout(**layout_kw))
-    st.plotly_chart(fig_graph, use_container_width=not (is_lattice_graph or has_pos_attr))
+        fig_graph = go.Figure(data=[edge_trace, node_trace], layout=go.Layout(**layout_kw))
+        st.plotly_chart(fig_graph, use_container_width=not (is_lattice_graph or has_pos_attr))
 
     st.subheader("Structural Statistics")
     stats = compute_graph_statistics(graph)
@@ -87,7 +96,7 @@ def render_stats_tab(graph: nx.Graph) -> None:
 
     col3.metric("Avg Clustering", f"{stats['average_clustering']:.4f}")
     col3.metric("Components", stats["num_components"])
-    col3.metric("Diameter", stats["diameter"])
+    col3.metric("Diameter", stats["diameter"] if stats["diameter"] >= 0 else "N/A (large graph)")
 
     st.metric("Avg Path Length", f"{stats['average_path_length']:.2f}")
 

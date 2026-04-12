@@ -5,3 +5,5 @@ streamlit
 watchdog
 pandas
 statsmodels
+scipy
+tqdm

@@ -9,6 +9,8 @@ from simulation.seed_selection import select_seeds
 from ui.state import SidebarConfig
 from visualization.visualization import animate_cascade
 
+LARGE_GRAPH_THRESHOLD = 500
+
 
 def render_sis_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
     st.subheader("SIS Epidemic Animation")
@@ -18,31 +20,32 @@ def render_sis_animation_tab(graph: nx.Graph, config: SidebarConfig) -> None:
         "be re-infected in later rounds (not shown distinctly in the network view). "
         "Use the epidemic curve below for a precise time-series view."
     )
+    n = graph.number_of_nodes()
+    large = n > LARGE_GRAPH_THRESHOLD
 
-    if graph.number_of_nodes() > 300:
-        st.warning(
-            "Animation works best with smaller graphs (<= 300 nodes). "
-            "The current graph has %d nodes — layout may be slow." % graph.number_of_nodes()
-        )
+    if large:
+        st.info(f"Graph has {n} nodes — animation is disabled. Simulation results will be shown as text.")
 
-    if st.button("▶ Animate epidemic", key="sis_run_anim"):
-        n = graph.number_of_nodes()
+    if st.button("▶ Run simulation" if large else "▶ Animate epidemic", key="sis_run_anim"):
         seed_size = max(1, int(config.seed_fraction * n))
         sim = SISModel(graph, beta=config.beta, gamma=config.gamma)
         seed_nodes = set(select_seeds(graph, seed_size, config.seed_strategy))
 
-        with st.spinner("Running simulation & building animation…"):
-            result, activation_sequence = sim.run(seed_nodes, record_sequence=True)
-            fig_anim = animate_cascade(graph, activation_sequence, show=False)
-            fig_curve = px.line(
-                x=list(range(len(result.infected_series))),
-                y=result.infected_series,
-                labels={"x": "Round", "y": "Infected nodes"},
-                title="SIS Epidemic Curve",
-            )
-
-        st.plotly_chart(fig_anim, use_container_width=True)
-        st.plotly_chart(fig_curve, use_container_width=True)
+        if large:
+            with st.spinner("Running simulation…"):
+                result, _ = sim.run(seed_nodes, record_sequence=False)
+        else:
+            with st.spinner("Running simulation & building animation…"):
+                result, activation_sequence = sim.run(seed_nodes, record_sequence=True)
+                fig_anim = animate_cascade(graph, activation_sequence, show=False)
+                fig_curve = px.line(
+                    x=list(range(len(result.infected_series))),
+                    y=result.infected_series,
+                    labels={"x": "Round", "y": "Infected nodes"},
+                    title="SIS Epidemic Curve",
+                )
+            st.plotly_chart(fig_anim, use_container_width=True)
+            st.plotly_chart(fig_curve, use_container_width=True)
 
         st.info(
             f"Peak infected: {result.peak_infected}/{n} nodes "
