@@ -45,6 +45,11 @@ from ui.tabs.h6_simulation_tab import render_h6_simulation_tab
 from ui.tabs.h6_animation_tab import render_h6_animation_tab
 from ui.tabs.h6_vulnerability_tab import render_h6_vulnerability_tab
 from ui.tabs.h6_sweep_tab import render_h6_sweep_tab
+from ui.tabs.ml_tab import (
+    render_ml_virality_tab,
+    render_ml_education_tab,
+    render_ml_about_tab,
+)
 
 
 def run_app() -> None:
@@ -110,6 +115,14 @@ def run_app() -> None:
         config = render_sidebar(model="h6")
         graph = get_graph_or_stop()
         _render_tabs_h6(graph, config)
+    elif model == "ml":
+        st.title("Virality Predictor")
+        with st.sidebar:
+            if st.button("← Back to Lab", use_container_width=True):
+                del st.session_state[SessionKeys.MODEL]
+                st.rerun()
+            st.markdown("---")
+        _render_tabs_ml()
 
 
 def _render_model_row(models: list) -> None:
@@ -216,9 +229,25 @@ def _render_welcome() -> None:
     _render_model_row(_HYBRID_MODELS[:3])
     _render_model_row(_HYBRID_MODELS[3:])
 
+    # ── ML Predictor ───────────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("## ML Virality Predictor")
+    st.markdown(
+        "Use machine learning to **predict how far a spreading process will reach** "
+        "from its early trajectory. "
+        "A Random Forest trained on 50 000 simulations across all 10 models "
+        "identifies the active spreading mechanism and estimates final reach — "
+        "no network required."
+    )
+    col_ml, _, _ = st.columns(3)
+    with col_ml:
+        if st.button("Use Virality Predictor →", use_container_width=True, key="btn_ml"):
+            st.session_state[SessionKeys.MODEL] = "ml"
+            st.rerun()
+
     st.markdown("---")
     st.caption(
-        "All models run on the same network types: Erdős–Rényi, Random Geometric, "
+        "All epidemic models run on the same network types: Erdős–Rényi, Random Geometric, "
         "and Lattice graphs, or any graph you upload (DIMACS, edge list, GML)."
     )
 
@@ -414,6 +443,20 @@ def _render_tabs_h6(graph, config) -> None:
         render_h6_vulnerability_tab(graph, config)
     with tab_sweep:
         render_h6_sweep_tab(graph, config)
+
+
+def _render_tabs_ml() -> None:
+    tab_predict, tab_learn, tab_about = st.tabs([
+        "🔮 Will It Go Viral?",
+        "📚 How Does It Spread?",
+        "ℹ️ About",
+    ])
+    with tab_predict:
+        render_ml_virality_tab()
+    with tab_learn:
+        render_ml_education_tab()
+    with tab_about:
+        render_ml_about_tab()
 
 
 def _render_tabs_h1(graph, config) -> None:

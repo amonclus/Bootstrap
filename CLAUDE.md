@@ -24,7 +24,7 @@ Dependencies: `src/requirements.txt`
 
 ```bash
 # Web UI
-streamlit run src/app.py
+streamlit run src/app2.py
 # or
 ./run.sh
 

@@ -33,6 +33,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+import joblib
 
 warnings.filterwarnings("ignore")
 
@@ -689,6 +690,45 @@ def write_summary(
     print(f"  Saved {RESULTS_DIR / 'summary.txt'}")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 5 — PERSIST MODELS FOR DEPLOYMENT
+# ══════════════════════════════════════════════════════════════════════════════
+
+def save_models(df: pd.DataFrame, I_all: np.ndarray):
+    """
+    Retrain the best regressor and classifier on the FULL dataset at
+    T_OBS_DEFAULT, then serialise four artefacts to ml_data/:
+
+      rf_regressor.pkl   — HGB regressor  (predicts rho_final from features)
+      rf_classifier.pkl  — HGB classifier (identifies which model produced I(t))
+      label_encoder.pkl  — dict {model_id: model_name}
+      feature_names.pkl  — ordered list of feature names
+    """
+    print("\n── PART 5: SAVING MODELS ───────────────────────────")
+
+    X, feat_names = build_feature_matrix(I_all, T_OBS_DEFAULT)
+    y_reg = df["rho_final"].values
+    y_cls = df["model_id"].values
+
+    reg = hgb_reg_pipe()
+    reg.fit(X, y_reg)
+
+    clf = hgb_cls_pipe()
+    clf.fit(X, y_cls)
+
+    label_encoder = {int(v): k for k, v in MODEL_ID_MAP.items()}
+
+    joblib.dump(reg,           DATA_DIR / "rf_regressor.pkl")
+    joblib.dump(clf,           DATA_DIR / "rf_classifier.pkl")
+    joblib.dump(label_encoder, DATA_DIR / "label_encoder.pkl")
+    joblib.dump(feat_names,    DATA_DIR / "feature_names.pkl")
+
+    print(f"  rf_regressor.pkl  — HGB regressor  trained on {len(X):,} samples")
+    print(f"  rf_classifier.pkl — HGB classifier trained on {len(X):,} samples")
+    print(f"  label_encoder.pkl — {label_encoder}")
+    print(f"  feature_names.pkl — {len(feat_names)} features: {', '.join(feat_names)}")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -707,6 +747,7 @@ def main():
         results_reg, per_model_stats, feat_imp,
         results_cls, per_class_f1, cross_net_accs, confused_pairs,
     )
+    save_models(df, I_all)
 
     print(f"\nTotal runtime: {time.time() - t0:.1f} s")
 

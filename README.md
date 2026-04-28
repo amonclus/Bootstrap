@@ -48,7 +48,7 @@ From these metrics a final robustness score is calculated, which is a composite 
 ## UI
 To launch the interactive user interface, run the following command:
 ```bash 
-streamlit run src/app.py
+streamlit run src/app2.py
 ```
 
 or run the shell script:
