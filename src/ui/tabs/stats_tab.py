@@ -7,10 +7,20 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from analysis.graph_statistics import compute_graph_statistics, degree_distribution
-from ui.charts import apply_layout_geometry, build_edge_trace, resolve_positions
+from ui.charts import _hash_graph, apply_layout_geometry, build_edge_trace, resolve_positions
 
 
 LARGE_GRAPH_THRESHOLD = 500
+
+
+@st.cache_data(show_spinner=False, hash_funcs={nx.Graph: _hash_graph})
+def _cached_graph_statistics(graph: nx.Graph) -> dict:
+    return compute_graph_statistics(graph)
+
+
+@st.cache_data(show_spinner=False, hash_funcs={nx.Graph: _hash_graph})
+def _cached_degree_distribution(graph: nx.Graph) -> dict:
+    return degree_distribution(graph)
 
 
 def render_stats_tab(graph: nx.Graph) -> None:
@@ -83,7 +93,7 @@ def render_stats_tab(graph: nx.Graph) -> None:
         st.plotly_chart(fig_graph, use_container_width=not (is_lattice_graph or has_pos_attr))
 
     st.subheader("Structural Statistics")
-    stats = compute_graph_statistics(graph)
+    stats = _cached_graph_statistics(graph)
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Nodes", stats["nodes"])
@@ -101,7 +111,7 @@ def render_stats_tab(graph: nx.Graph) -> None:
     st.metric("Avg Path Length", f"{stats['average_path_length']:.2f}")
 
     st.subheader("Degree Distribution")
-    dd = degree_distribution(graph)
+    dd = _cached_degree_distribution(graph)
     df_dd = pd.DataFrame(sorted(dd.items()), columns=["Degree", "Count"])
     fig_dd = px.bar(df_dd, x="Degree", y="Count", title="Degree Distribution")
     st.plotly_chart(fig_dd, use_container_width=True)

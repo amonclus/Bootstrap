@@ -4,10 +4,21 @@ from typing import Any
 
 import networkx as nx
 import plotly.graph_objects as go
+import streamlit as st
 
 from visualization.visualization import _is_lattice
 
 
+def _hash_graph(g: nx.Graph) -> int:
+    """Structural hash for a networkx Graph usable with st.cache_data."""
+    n, m = g.number_of_nodes(), g.number_of_edges()
+    edges = list(g.edges())
+    # Sample at most 2000 edges for large graphs to keep hashing fast
+    step = max(1, m // 2000)
+    return hash((n, m, frozenset(edges[::step])))
+
+
+@st.cache_data(show_spinner=False, hash_funcs={nx.Graph: _hash_graph})
 def resolve_positions(graph: nx.Graph) -> tuple[dict[Any, tuple[float, float]], bool, bool]:
     is_lattice_graph = _is_lattice(graph)
     has_pos_attr = all("pos" in graph.nodes[n] for n in graph.nodes())
@@ -19,11 +30,13 @@ def resolve_positions(graph: nx.Graph) -> tuple[dict[Any, tuple[float, float]], 
     elif graph.number_of_nodes() <= 500:
         pos = nx.kamada_kawai_layout(graph)
     else:
+        n = graph.number_of_nodes()
+        iterations = 30 if n > 2000 else 50 if n > 1000 else 80
         pos = nx.spring_layout(
             graph,
             seed=42,
-            k=1.5 / (graph.number_of_nodes() ** 0.5),
-            iterations=80,
+            k=1.5 / (n ** 0.5),
+            iterations=iterations,
         )
 
     return pos, is_lattice_graph, has_pos_attr

@@ -9,6 +9,7 @@ from simulation.seed_selection import SeedStrategy
 
 
 class SessionKeys:
+    WELCOMED = "welcomed"
     MODEL = "model"
     GRAPH = "graph"
     # Bootstrap percolation
@@ -93,4 +94,32 @@ def get_graph_or_stop() -> nx.Graph:
         st.info("👈 Configure and generate (or upload) a graph in the sidebar to get started.")
         st.stop()
     return graph
+
+
+def clear_sim_results() -> None:
+    """Remove all cached simulation results from session state."""
+    result_keys = [
+        SessionKeys.SIM_RESULTS, SessionKeys.VULN_DATA,
+        SessionKeys.BLOCK_DATA, SessionKeys.BLOCK_BASELINE,
+        SessionKeys.SIR_SIM_RESULTS, SessionKeys.SIR_VULN_DATA,
+        SessionKeys.SIR_BLOCK_DATA, SessionKeys.SIR_BLOCK_BASELINE,
+        SessionKeys.H1_SIM_RESULTS, SessionKeys.H1_VULN_DATA,
+        SessionKeys.H1_BLOCK_DATA, SessionKeys.H1_BLOCK_BASELINE,
+        SessionKeys.H2_SIM_RESULTS, SessionKeys.H2_VULN_DATA,
+        SessionKeys.H2_BLOCK_DATA, SessionKeys.H2_BLOCK_BASELINE,
+        SessionKeys.H3_SIM_RESULTS, SessionKeys.H3_VULN_DATA,
+        SessionKeys.H3_BLOCK_DATA, SessionKeys.H3_BLOCK_BASELINE,
+        SessionKeys.SIS_SIM_RESULTS, SessionKeys.SIS_VULN_DATA,
+        SessionKeys.SIS_BLOCK_DATA, SessionKeys.SIS_BLOCK_BASELINE,
+        SessionKeys.WTM_SIM_RESULTS, SessionKeys.WTM_VULN_DATA,
+        SessionKeys.WTM_BLOCK_DATA, SessionKeys.WTM_BLOCK_BASELINE,
+        SessionKeys.H4_SIM_RESULTS, SessionKeys.H4_VULN_DATA,
+        SessionKeys.H4_BLOCK_DATA, SessionKeys.H4_BLOCK_BASELINE,
+        SessionKeys.H5_SIM_RESULTS, SessionKeys.H5_VULN_DATA,
+        SessionKeys.H5_BLOCK_DATA, SessionKeys.H5_BLOCK_BASELINE,
+        SessionKeys.H6_SIM_RESULTS, SessionKeys.H6_VULN_DATA,
+        SessionKeys.H6_BLOCK_DATA, SessionKeys.H6_BLOCK_BASELINE,
+    ]
+    for key in result_keys:
+        st.session_state.pop(key, None)
 

@@ -69,17 +69,17 @@ class BootstrapPercolation:
         if record_sequence:
             activation_sequence.append(set(infected))  # initial seed round
 
-        while True:
-            newly_infected = set()
-            for node in self.graph.nodes():
-                if node in infected:
-                    continue
-                infected_neighbors = sum(
-                    1 for neighbor in self.graph.neighbors(node) if neighbor in infected
-                )
-                if infected_neighbors >= self.threshold:
-                    newly_infected.add(node)
+        # Frontier-based: only check uninfected neighbours of newly infected nodes
+        candidates: set = set()
+        for s in infected:
+            candidates.update(self.graph.neighbors(s))
+        candidates -= infected
 
+        while candidates:
+            newly_infected = {
+                node for node in candidates
+                if sum(1 for nb in self.graph.neighbors(node) if nb in infected) >= self.threshold
+            }
             if not newly_infected:
                 break
 
@@ -88,6 +88,11 @@ class BootstrapPercolation:
 
             if record_sequence:
                 activation_sequence.append(set(newly_infected))
+
+            next_candidates: set = set()
+            for node in newly_infected:
+                next_candidates.update(self.graph.neighbors(node))
+            candidates = next_candidates - infected
 
         result = BootstrapResult(
             infected_nodes=infected,
@@ -260,8 +265,9 @@ class BootstrapPercolation:
         n = len(nodes)
         seed_size = max(2, int(seed_fraction * n))
 
-        # Pre-compute structural centralities (cheap for typical sizes)
-        betweenness = nx.betweenness_centrality(self.graph)
+        # Use sampling approximation for expensive centralities on large graphs
+        k_approx = min(n, 200) if n > 500 else None
+        betweenness = nx.betweenness_centrality(self.graph, k=k_approx)
         closeness = nx.closeness_centrality(self.graph)
 
         results: list[dict] = []
@@ -346,17 +352,17 @@ class BootstrapPercolation:
         baseline_avg = sum(baseline_fractions) / num_trials
         baseline_prob = baseline_full / num_trials
 
-        # Pre-compute structural centralities on original graph
-        betweenness = nx.betweenness_centrality(self.graph)
+        # Use sampling approximation for expensive centralities on large graphs
+        k_approx = min(n, 200) if n > 500 else None
+        betweenness = nx.betweenness_centrality(self.graph, k=k_approx)
         closeness = nx.closeness_centrality(self.graph)
 
         results: list[dict] = []
 
         for idx, target in enumerate(nodes):
-            # Build reduced graph
-            sub = self.graph.copy()
-            sub.remove_node(target)
-            sub_nodes = list(sub.nodes())
+            # Subgraph view (O(1)) instead of a full graph copy + remove_node
+            sub_nodes = [nd for nd in nodes if nd != target]
+            sub = self.graph.subgraph(sub_nodes)
 
             if len(sub_nodes) == 0:
                 results.append({
